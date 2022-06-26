@@ -46,32 +46,21 @@ export default class Booklog {
     if (!this.options.isIgnoreCookie && fs.existsSync(cookiePath)) {
       const cookies = JSON.parse(fs.readFileSync(cookiePath, 'utf-8'))
       for (const cookie of cookies) {
-        await this.page?.setCookie(cookie)
+        await this.page.setCookie(cookie)
       }
     }
-    await this.page
-      ?.goto('https://booklog.jp/login', {
-        waitUntil: 'networkidle2',
-      })
-      .then(async () => {
-        await this.page?.screenshot({
-          path: '/data/login3.png',
-          fullPage: true,
-        })
-      })
+    await this.page?.goto('https://booklog.jp/login', {
+      waitUntil: 'networkidle2',
+    })
 
     if (
       !this.options.isIgnoreCookie &&
-      this.page?.url() !== 'https://booklog.jp/login'
+      this.page.url() !== 'https://booklog.jp/login'
     ) {
       // already login?
       return
     }
 
-    await this.page.screenshot({
-      path: '/data/login1.png',
-      fullPage: true,
-    })
 
     await this.page
       ?.waitForSelector('input#account', {
@@ -79,20 +68,14 @@ export default class Booklog {
       })
       .then((element) => element?.type(this.options.username))
 
-    await this.page.screenshot({
-      path: '/data/login2.png',
-      fullPage: true,
-    })
     await this.page
       ?.waitForSelector('input#password', {
         visible: true,
       })
       .then((element) => element?.type(this.options.password))
 
-    await this.page.screenshot({
-      path: '/data/login3.png',
-      fullPage: true,
-    })
+
+    fs.writeFileSync('/data/booklog-login.html', await this.page.content())
 
     // ログインボタンを押して画面が遷移するのを待つ
     await Promise.all([
@@ -100,16 +83,9 @@ export default class Booklog {
         ?.waitForSelector('button[type="submit"]', {
           visible: true,
         })
-        .then((element) => element?.click())
-        .then(async () => {
-          await this.page?.screenshot({
-            path: '/data/login3.png',
-            fullPage: true,
-          })
-        }),
-      await this.page?.waitForNavigation(),
+        .then((element) => element?.click()),
     ])
-    const cookies = await this.page?.cookies()
+    const cookies = await this.page.cookies()
     fs.writeFileSync(cookiePath, JSON.stringify(cookies))
   }
 
@@ -118,10 +94,10 @@ export default class Booklog {
     if (!this.page) {
       throw new Error('not login')
     }
-    await this.page?.goto('https://booklog.jp/export', {
+    await this.page.goto('https://booklog.jp/export', {
       waitUntil: 'networkidle2',
     })
-    await this.page?.waitForSelector('a#execExport', {
+    await this.page.waitForSelector('a#execExport', {
       visible: true,
     })
 
@@ -165,7 +141,7 @@ export default class Booklog {
     if (!this.page) {
       throw new Error('not login')
     }
-    await this.page?.goto(`https://booklog.jp/edit/1/${itemId}`, {
+    await this.page.goto(`https://booklog.jp/edit/1/${itemId}`, {
       waitUntil: 'networkidle2',
     })
     await this.page
@@ -175,6 +151,13 @@ export default class Booklog {
       })
       .then((element) => element?.click())
       .catch(() => null)
-    await this.page?.waitForNavigation()
+    await this.page.waitForNavigation()
+  }
+
+  public async destroy(): Promise<void> {
+    console.log('Booklog.destroy()')
+    if (this.page) {
+      await this.page.close()
+    }
   }
 }

@@ -28,12 +28,16 @@ export default class Amazon {
         await this.page?.setCookie(cookie)
       }
     }
-    await this.page?.goto(
-      'https://read.amazon.co.jp/kindle-library?sortType=recency',
-      {
+    await this.page
+      ?.goto('https://read.amazon.co.jp/kindle-library?sortType=recency', {
         waitUntil: 'networkidle2',
-      }
-    )
+      })
+      .catch(async () => {
+        await this.page?.screenshot({
+          path: '/data/amazon-login0.png',
+          fullPage: true,
+        })
+      })
 
     if (
       !this.options.isIgnoreCookie &&
@@ -42,6 +46,7 @@ export default class Amazon {
       // already login?
       return
     }
+
 
     await this.page
       ?.waitForSelector('input#ap_email', {
@@ -58,7 +63,10 @@ export default class Amazon {
         visible: true,
       })
       .then((element) => element?.click())
-    await this.page?.click('input#signInSubmit')
+    await Promise.all([
+      await this.page?.click('input#signInSubmit'),
+      await this.page?.waitForNavigation(),
+    ])
 
     if (this.options.otpSecret) {
       const otpCode = authenticator.generate(
@@ -74,14 +82,17 @@ export default class Amazon {
           visible: true,
         })
         .then((element) => element?.click())
-      await this.page
-        ?.waitForSelector('input#auth-signin-button', {
-          visible: true,
-        })
-        .then((element) => element?.click())
+
+      await Promise.all([
+        await this.page
+          ?.waitForSelector('input#auth-signin-button', {
+            visible: true,
+          })
+          .then((element) => element?.click()),
+        await this.page?.waitForNavigation(),
+      ])
     }
 
-    await this.page?.waitForNavigation()
     const cookies = await this.page?.cookies()
     fs.writeFileSync(cookiePath, JSON.stringify(cookies))
   }
@@ -91,12 +102,16 @@ export default class Amazon {
     if (!this.page) {
       throw new Error('not login')
     }
-    await this.page?.goto(
-      'https://read.amazon.co.jp/kindle-library?sortType=recency',
-      {
+    await this.page
+      ?.goto('https://read.amazon.co.jp/kindle-library?sortType=recency', {
         waitUntil: 'networkidle2',
-      }
-    )
+      })
+      .catch(async () => {
+        await this.page?.screenshot({
+          path: '/data/amazon-getbook-1.png',
+          fullPage: true,
+        })
+      })
     await scrollPageToBottom(this.page, {
       size: 400,
       delay: 250,
@@ -113,5 +128,12 @@ export default class Amazon {
       })
       .catch(() => [])
     return books ?? []
+  }
+
+  public async destroy(): Promise<void> {
+    console.log('Amazon.destroy()')
+    if (this.page) {
+      await this.page.close()
+    }
   }
 }

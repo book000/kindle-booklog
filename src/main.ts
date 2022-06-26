@@ -49,6 +49,7 @@ interface Config {
   })
   await amazon.login()
   const kindleBooks = await amazon.getBooks()
+  amazon.destroy()
 
   const booklog = new Booklog({
     browser,
@@ -58,6 +59,7 @@ interface Config {
   })
   await booklog.login()
   const booklogBooks = await booklog.getBookshelfBooks()
+  booklog.destroy()
 
   const newBooks = []
 
