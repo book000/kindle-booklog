@@ -31,7 +31,6 @@ WORKDIR /app
 COPY --chown=pptruser:pptruser package.json yarn.lock ./
 RUN yarn
 RUN chown -R pptruser:pptruser ./node_modules
-RUN chown -R pptruser:pptruser /data
 COPY --chown=pptruser:pptruser . .
 
 USER pptruser
