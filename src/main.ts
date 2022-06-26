@@ -34,7 +34,6 @@ interface Config {
     headless: true,
     channel: 'chrome',
     slowMo: 100,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
     ...config.puppeteer,
   }
 
