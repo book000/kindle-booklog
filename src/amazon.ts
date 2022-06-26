@@ -19,6 +19,7 @@ export default class Amazon {
   }
 
   public async login(): Promise<void> {
+    console.log('Amazon.login()')
     this.page = await this.options.browser.newPage()
     const cookiePath = this.options.cookiePath ?? 'cookie-amazon.json'
     if (!this.options.isIgnoreCookie && fs.existsSync(cookiePath)) {
@@ -86,6 +87,7 @@ export default class Amazon {
   }
 
   public async getBooks(): Promise<string[]> {
+    console.log('Amazon.getBooks()')
     if (!this.page) {
       throw new Error('not login')
     }

@@ -40,6 +40,7 @@ export default class Booklog {
   constructor(public options: BooklogOptions) {}
 
   public async login(): Promise<void> {
+    console.log('Booklog.login()')
     this.page = await this.options.browser.newPage()
     const cookiePath = this.options.cookiePath ?? 'cookie-booklog.json'
     if (!this.options.isIgnoreCookie && fs.existsSync(cookiePath)) {
@@ -82,6 +83,7 @@ export default class Booklog {
   }
 
   public async getBookshelfBooks(): Promise<Book[]> {
+    console.log('Booklog.getBookshelfBooks()')
     if (!this.page) {
       throw new Error('not login')
     }
@@ -128,6 +130,7 @@ export default class Booklog {
   }
 
   public async addBookshelfBook(itemId: string): Promise<void> {
+    console.log('Booklog.addBookshelfBook()')
     if (!this.page) {
       throw new Error('not login')
     }
