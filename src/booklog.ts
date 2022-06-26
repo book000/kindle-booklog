@@ -71,13 +71,16 @@ export default class Booklog {
         visible: true,
       })
       .then((element) => element?.type(this.options.password))
-    await this.page
-      ?.waitForSelector('button[type="submit"]', {
-        visible: true,
-      })
-      .then((element) => element?.click())
 
-    await this.page?.waitForNavigation()
+    // ログインボタンを押して画面が遷移するのを待つ
+    await Promise.all([
+      await this.page
+        ?.waitForSelector('button[type="submit"]', {
+          visible: true,
+        })
+        .then((element) => element?.click()),
+      await this.page?.waitForNavigation(),
+    ])
     const cookies = await this.page?.cookies()
     fs.writeFileSync(cookiePath, JSON.stringify(cookies))
   }
