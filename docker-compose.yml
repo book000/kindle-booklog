@@ -2,16 +2,9 @@ version: '3.8'
 
 services:
   kindle-booklog:
-    build: .
+    build:
+      context: ./
     volumes:
-      - data:/data
+      - ./data:/data
     env_file:
       - kindle-booklog.env
-
-volumes:
-  data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ./data/

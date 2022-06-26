@@ -32,8 +32,9 @@ interface Config {
       extraPrefsFirefox?: Record<string, unknown>
     } = {
     headless: true,
-    channel: 'chrome',
     slowMo: 100,
+    executablePath: '/usr/bin/chromium-browser',
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
     ...config.puppeteer,
   }
 

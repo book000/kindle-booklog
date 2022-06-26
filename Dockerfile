@@ -1,18 +1,30 @@
-FROM node:14-slim
+FROM alpine:edge
 
-# @see https://github.com/puppeteer/puppeteer/blob/main/docs/troubleshooting.md#running-puppeteer-in-docker
+RUN apk update
 
-RUN apt-get update \
-  && apt-get install -y wget gnupg \
-  && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-  && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list' \
-  && apt-get update \
-  && apt-get install -y google-chrome-stable fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf libxss1 \
-  --no-install-recommends \
-  && rm -rf /var/lib/apt/lists/*
+# japanese font
+RUN apk add --no-cache curl fontconfig font-noto-cjk \
+  && fc-cache -fv
 
-RUN groupadd -r pptruser
-RUN useradd -r -g pptruser -G audio,video pptruser
+# Installs latest Chromium (76) package.
+RUN apk add --no-cache \
+  chromium \
+  nss \
+  freetype \
+  freetype-dev \
+  harfbuzz \
+  ca-certificates \
+  ttf-freefont \
+  nodejs \
+  yarn
+
+# timezone
+RUN apk add --update --no-cache tzdata && \
+  cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
+  echo "Asia/Tokyo" > /etc/timezone && \
+  apk del tzdata
+
+RUN addgroup -S pptruser && adduser -S -g pptruser pptruser
 
 WORKDIR /app
 

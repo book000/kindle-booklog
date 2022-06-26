@@ -5,3 +5,4 @@ config/*
 config.json
 cookie-*.json
 added.json
+kindle-booklog.env
