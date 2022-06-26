@@ -5,5 +5,5 @@ BASEDIR="$(dirname "$0")"
 sed -i -e "s#%WorkingDirectory%#${BASEDIR}#" ./*.service
 sudo cp -v ./*.service /etc/systemd/system/
 sudo cp -v ./*.timer /etc/systemd/system/
-find . -maxdepth 1 -name '*.timer' -exec sudo systemctl enable {} \;
-find . -maxdepth 1 -name '*.timer' -exec sudo systemctl start {} \;
+find . -maxdepth 1 -name '*.timer' | sed 's!^.*/!!' | xargs sudo systemctl enable
+find . -maxdepth 1 -name '*.timer' | sed 's!^.*/!!' | xargs sudo systemctl start
