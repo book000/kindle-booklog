@@ -24,15 +24,11 @@ RUN apk add --update --no-cache tzdata && \
   echo "Asia/Tokyo" > /etc/timezone && \
   apk del tzdata
 
-RUN addgroup -S pptruser && adduser -S -g pptruser pptruser
-
 WORKDIR /app
 
-COPY --chown=pptruser:pptruser package.json yarn.lock ./
+COPY package.json yarn.lock ./
 RUN yarn
-RUN chown -R pptruser:pptruser ./node_modules
-COPY --chown=pptruser:pptruser . .
+COPY . .
 
-USER pptruser
 
 CMD ["yarn", "build"]

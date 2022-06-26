@@ -49,9 +49,16 @@ export default class Booklog {
         await this.page?.setCookie(cookie)
       }
     }
-    await this.page?.goto('https://booklog.jp/login', {
-      waitUntil: 'networkidle2',
-    })
+    await this.page
+      ?.goto('https://booklog.jp/login', {
+        waitUntil: 'networkidle2',
+      })
+      .then(async () => {
+        await this.page?.screenshot({
+          path: '/data/login3.png',
+          fullPage: true,
+        })
+      })
 
     if (
       !this.options.isIgnoreCookie &&
@@ -61,16 +68,31 @@ export default class Booklog {
       return
     }
 
+    await this.page.screenshot({
+      path: '/data/login1.png',
+      fullPage: true,
+    })
+
     await this.page
       ?.waitForSelector('input#account', {
         visible: true,
       })
       .then((element) => element?.type(this.options.username))
+
+    await this.page.screenshot({
+      path: '/data/login2.png',
+      fullPage: true,
+    })
     await this.page
       ?.waitForSelector('input#password', {
         visible: true,
       })
       .then((element) => element?.type(this.options.password))
+
+    await this.page.screenshot({
+      path: '/data/login3.png',
+      fullPage: true,
+    })
 
     // ログインボタンを押して画面が遷移するのを待つ
     await Promise.all([
@@ -78,7 +100,13 @@ export default class Booklog {
         ?.waitForSelector('button[type="submit"]', {
           visible: true,
         })
-        .then((element) => element?.click()),
+        .then((element) => element?.click())
+        .then(async () => {
+          await this.page?.screenshot({
+            path: '/data/login3.png',
+            fullPage: true,
+          })
+        }),
       await this.page?.waitForNavigation(),
     ])
     const cookies = await this.page?.cookies()
