@@ -1,6 +1,7 @@
 #!/bin/bash
-cd "$(dirname "$0")" || exit 1
-BASEDIR="$(dirname "$0")"
+BASEDIR=$(cd "$(dirname "$0")" || exit 1; pwd)
+cd "$BASEDIR" || exit 1
+BASEDIR=$(dirname "$BASEDIR")
 
 sed -i -e "s#%WorkingDirectory%#${BASEDIR}#" ./*.service
 sudo cp -v ./*.service /etc/systemd/system/
