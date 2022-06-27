@@ -47,7 +47,6 @@ export default class Amazon {
       return
     }
 
-
     await this.page
       ?.waitForSelector('input#ap_email', {
         visible: true,

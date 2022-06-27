@@ -61,7 +61,6 @@ export default class Booklog {
       return
     }
 
-
     await this.page
       ?.waitForSelector('input#account', {
         visible: true,
@@ -73,7 +72,6 @@ export default class Booklog {
         visible: true,
       })
       .then((element) => element?.type(this.options.password))
-
 
     fs.writeFileSync('/data/booklog-login.html', await this.page.content())
 
