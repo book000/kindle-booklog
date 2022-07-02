@@ -64,7 +64,6 @@ export default class Amazon {
       .then((element) => element?.click())
     await Promise.all([
       await this.page?.click('input#signInSubmit'),
-      await this.page?.waitForNavigation(),
     ])
 
     if (this.options.otpSecret) {

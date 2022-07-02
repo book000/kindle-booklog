@@ -59,7 +59,6 @@ interface Config {
   })
   await booklog.login()
   const booklogBooks = await booklog.getBookshelfBooks()
-  booklog.destroy()
 
   const newBooks = []
 
@@ -87,6 +86,7 @@ interface Config {
     addedBooks.push(book)
   }
   fs.writeFileSync(addedPath, JSON.stringify(addedBooks))
+  booklog.destroy()
 
   await browser.close()
 })()
