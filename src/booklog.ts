@@ -154,8 +154,9 @@ export default class Booklog {
 
   public async destroy(): Promise<void> {
     console.log('Booklog.destroy()')
-    if (this.page) {
+    if (this.page && !this.page.isClosed()) {
       await this.page.close()
+      this.page = undefined
     }
   }
 }

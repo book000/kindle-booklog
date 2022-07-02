@@ -49,7 +49,7 @@ interface Config {
   })
   await amazon.login()
   const kindleBooks = await amazon.getBooks()
-  amazon.destroy()
+  await amazon.destroy()
 
   const booklog = new Booklog({
     browser,
@@ -86,7 +86,7 @@ interface Config {
     addedBooks.push(book)
   }
   fs.writeFileSync(addedPath, JSON.stringify(addedBooks))
-  booklog.destroy()
+  await booklog.destroy()
 
   await browser.close()
 })()

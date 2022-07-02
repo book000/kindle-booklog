@@ -62,9 +62,7 @@ export default class Amazon {
         visible: true,
       })
       .then((element) => element?.click())
-    await Promise.all([
-      await this.page?.click('input#signInSubmit'),
-    ])
+    await Promise.all([await this.page?.click('input#signInSubmit')])
 
     if (this.options.otpSecret) {
       const otpCode = authenticator.generate(
@@ -130,8 +128,9 @@ export default class Amazon {
 
   public async destroy(): Promise<void> {
     console.log('Amazon.destroy()')
-    if (this.page) {
+    if (this.page && !this.page.isClosed()) {
       await this.page.close()
+      this.page = undefined
     }
   }
 }
