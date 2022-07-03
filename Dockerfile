@@ -28,7 +28,7 @@ WORKDIR /app
 
 COPY package.json yarn.lock ./
 RUN yarn
-COPY . .
-
+COPY src/ src/
+COPY tsconfig.json .
 
 CMD ["yarn", "build"]
