@@ -31,4 +31,5 @@ RUN yarn
 COPY src/ src/
 COPY tsconfig.json .
 
+ENTRYPOINT ["dumb-init", "--"]
 CMD ["yarn", "build"]
