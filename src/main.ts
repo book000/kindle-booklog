@@ -1,3 +1,4 @@
+import axios from 'axios'
 import fs from 'fs'
 import puppeteer, {
   BrowserConnectOptions,
@@ -21,7 +22,7 @@ interface Config {
   puppeteer: { [key: string]: unknown }
 }
 
-;(async () => {
+async function main() {
   const configPath = process.env.CONFIG_PATH ?? 'config.json'
   const config: Config = JSON.parse(fs.readFileSync(configPath, 'utf8'))
 
@@ -92,10 +93,29 @@ interface Config {
     }
     console.log('add book: ' + book)
     await booklog.addBookshelfBook(book)
+    await axios
+      .post('http://discord-deliver', {
+        content: `kindle-booklog: Read https://www.amazon.co.jp/dp/${book}/`,
+      })
+      .catch(() => null)
     addedBooks.push(book)
   }
   fs.writeFileSync(addedPath, JSON.stringify(addedBooks))
   await booklog.destroy()
 
   await browser.close()
+}
+
+;(async () => {
+  await main().catch(async (err) => {
+    await axios
+      .post('http://discord-deliver', {
+        embed: {
+          title: `Error`,
+          description: `${err.message}`,
+          color: 0xff0000,
+        },
+      })
+      .catch(() => null)
+  })
 })()

@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   kindle-booklog:
-    image: book000/kindle-booklog:v1.1.1
+    image: book000/kindle-booklog:v1.2.0
     volumes:
       - ./data:/data
     env_file:
