@@ -51,17 +51,17 @@ export default class Amazon {
       ?.waitForSelector('input#ap_email', {
         visible: true,
       })
-      .then((element) => {
-        element?.click({ clickCount: 3 })
-        element?.type(this.options.username)
+      .then(async (element) => {
+        await element?.click({ clickCount: 3 })
+        await element?.type(this.options.username)
       })
     await this.page
       ?.waitForSelector('input#ap_password', {
         visible: true,
       })
-      .then((element) => {
-        element?.click({ clickCount: 3 })
-        element?.type(this.options.password)
+      .then(async (element) => {
+        await element?.click({ clickCount: 3 })
+        await element?.type(this.options.password)
       })
     await this.page
       ?.waitForSelector('input[name="rememberMe"]', {
