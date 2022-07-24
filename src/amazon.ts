@@ -1,7 +1,7 @@
-import puppeteer, { Page } from 'puppeteer-core'
 import fs from 'fs'
 import { authenticator } from 'otplib'
 import { scrollPageToBottom } from 'puppeteer-autoscroll-down'
+import puppeteer, { Page } from 'puppeteer-core'
 
 interface AmazonOptions {
   browser: puppeteer.Browser
@@ -51,12 +51,18 @@ export default class Amazon {
       ?.waitForSelector('input#ap_email', {
         visible: true,
       })
-      .then((element) => element?.type(this.options.username))
+      .then((element) => {
+        element?.click({ clickCount: 3 })
+        element?.type(this.options.username)
+      })
     await this.page
       ?.waitForSelector('input#ap_password', {
         visible: true,
       })
-      .then((element) => element?.type(this.options.password))
+      .then((element) => {
+        element?.click({ clickCount: 3 })
+        element?.type(this.options.password)
+      })
     await this.page
       ?.waitForSelector('input[name="rememberMe"]', {
         visible: true,
