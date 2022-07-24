@@ -50,60 +50,62 @@ async function main() {
 
   const browser = await puppeteer.launch(puppeteerOptions)
 
-  const amazon = new Amazon({
-    browser,
-    username: config.amazon.username,
-    password: config.amazon.password,
-    otpSecret: config.amazon.otpSecret,
-    cookiePath: process.env.COOKIE_AMAZON,
-  })
-  await amazon.login()
-  const kindleBooks = await amazon.getBooks()
-  await amazon.destroy()
+  try {
+    const amazon = new Amazon({
+      browser,
+      username: config.amazon.username,
+      password: config.amazon.password,
+      otpSecret: config.amazon.otpSecret,
+      cookiePath: process.env.COOKIE_AMAZON,
+    })
+    await amazon.login()
+    const kindleBooks = await amazon.getBooks()
+    await amazon.destroy()
 
-  const booklog = new Booklog({
-    browser,
-    username: config.booklog.username,
-    password: config.booklog.password,
-    cookiePath: process.env.COOKIE_BOOKLOG,
-  })
-  await booklog.login()
-  const booklogBooks = await booklog.getBookshelfBooks()
+    const booklog = new Booklog({
+      browser,
+      username: config.booklog.username,
+      password: config.booklog.password,
+      cookiePath: process.env.COOKIE_BOOKLOG,
+    })
+    await booklog.login()
+    const booklogBooks = await booklog.getBookshelfBooks()
 
-  const newBooks = []
+    const newBooks = []
 
-  for (const kindleBook of kindleBooks) {
-    const booklogBook = booklogBooks.find(
-      (book) => book.itemId.toUpperCase() === kindleBook.toUpperCase()
-    )
-    if (!booklogBook) {
-      newBooks.push(kindleBook)
+    for (const kindleBook of kindleBooks) {
+      const booklogBook = booklogBooks.find(
+        (book) => book.itemId.toUpperCase() === kindleBook.toUpperCase()
+      )
+      if (!booklogBook) {
+        newBooks.push(kindleBook)
+      }
     }
-  }
 
-  // 一度登録した本は除外する
-  const addedPath = process.env.ADDED_FILE ?? 'added.json'
-  const addedBooks = fs.existsSync(addedPath)
-    ? JSON.parse(fs.readFileSync(addedPath, 'utf8'))
-    : []
+    // 一度登録した本は除外する
+    const addedPath = process.env.ADDED_FILE ?? 'added.json'
+    const addedBooks = fs.existsSync(addedPath)
+      ? JSON.parse(fs.readFileSync(addedPath, 'utf8'))
+      : []
 
-  for (const book of newBooks) {
-    if (addedBooks.includes(book)) {
-      continue
+    for (const book of newBooks) {
+      if (addedBooks.includes(book)) {
+        continue
+      }
+      console.log('add book: ' + book)
+      await booklog.addBookshelfBook(book)
+      await axios
+        .post('http://discord-deliver', {
+          content: `kindle-booklog: Read https://www.amazon.co.jp/dp/${book}/`,
+        })
+        .catch(() => null)
+      addedBooks.push(book)
     }
-    console.log('add book: ' + book)
-    await booklog.addBookshelfBook(book)
-    await axios
-      .post('http://discord-deliver', {
-        content: `kindle-booklog: Read https://www.amazon.co.jp/dp/${book}/`,
-      })
-      .catch(() => null)
-    addedBooks.push(book)
+    fs.writeFileSync(addedPath, JSON.stringify(addedBooks))
+    await booklog.destroy()
+  } finally {
+    await browser.close()
   }
-  fs.writeFileSync(addedPath, JSON.stringify(addedBooks))
-  await booklog.destroy()
-
-  await browser.close()
 }
 
 ;(async () => {

@@ -4,6 +4,11 @@ services:
   kindle-booklog:
     image: book000/kindle-booklog:v1.2.0
     volumes:
-      - ./data:/data
+      - type: bind
+        source: ./data
+        target: /data
+      - type: bind
+        source: ./config.json
+        target: /app/config.json
     env_file:
       - kindle-booklog.env
