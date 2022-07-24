@@ -63,14 +63,21 @@ export default class Amazon {
         await element?.click({ clickCount: 3 })
         await element?.type(this.options.password)
       })
-    await this.page
-      ?.waitForSelector('input[name="rememberMe"]', {
-        visible: true,
-      })
-      .then((element) => element?.click())
+    await this.page.evaluate(() => {
+      const rememberMe = document.querySelector(
+        'input[name="rememberMe"]'
+      ) as HTMLInputElement
+      if (rememberMe) {
+        rememberMe.checked = true
+      }
+    })
     await Promise.all([await this.page?.click('input#signInSubmit')])
+    await this.page.waitForTimeout(3000)
 
-    if (this.options.otpSecret) {
+    if (
+      this.options.otpSecret &&
+      this.page.url().startsWith('https://www.amazon.co.jp/ap/mfa')
+    ) {
       const otpCode = authenticator.generate(
         this.options.otpSecret.replace(/ /g, '')
       )
@@ -79,11 +86,14 @@ export default class Amazon {
           visible: true,
         })
         .then((element) => element?.type(otpCode))
-      await this.page
-        ?.waitForSelector('input#auth-mfa-remember-device', {
-          visible: true,
-        })
-        .then((element) => element?.click())
+      await this.page.evaluate(() => {
+        const rememberMe = document.querySelector(
+          'input#auth-mfa-remember-device'
+        ) as HTMLInputElement
+        if (rememberMe) {
+          rememberMe.checked = true
+        }
+      })
 
       await Promise.all([
         await this.page
