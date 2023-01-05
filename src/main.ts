@@ -19,20 +19,24 @@ interface Config {
     username: string
     password: string
   }
+  proxy?: {
+    server: string
+    username?: string
+    password?: string
+  }
   puppeteer: { [key: string]: unknown }
 }
 
 async function main() {
   const configPath = process.env.CONFIG_PATH ?? 'config.json'
   const config: Config = JSON.parse(fs.readFileSync(configPath, 'utf8'))
-
   const puppeteerOptions: LaunchOptions &
     BrowserLaunchArgumentOptions &
     BrowserConnectOptions & {
       product?: Product
       extraPrefsFirefox?: Record<string, unknown>
     } = {
-    headless: true,
+    headless: false,
     slowMo: 100,
     executablePath: '/usr/bin/chromium-browser',
     args: [
@@ -48,26 +52,36 @@ async function main() {
     ...config.puppeteer,
   }
 
+  if (config.proxy && config.proxy.server) {
+    puppeteerOptions.args?.push('--proxy-server=' + config.proxy.server)
+  }
+
   const browser = await puppeteer.launch(puppeteerOptions)
 
   try {
-    const amazon = new Amazon({
-      browser,
-      username: config.amazon.username,
-      password: config.amazon.password,
-      otpSecret: config.amazon.otpSecret,
-      cookiePath: process.env.COOKIE_AMAZON,
-    })
+    const amazon = new Amazon(
+      {
+        browser,
+        username: config.amazon.username,
+        password: config.amazon.password,
+        otpSecret: config.amazon.otpSecret,
+        cookiePath: process.env.COOKIE_AMAZON,
+      },
+      config.proxy
+    )
     await amazon.login()
     const kindleBooks = await amazon.getBooks()
     await amazon.destroy()
 
-    const booklog = new Booklog({
-      browser,
-      username: config.booklog.username,
-      password: config.booklog.password,
-      cookiePath: process.env.COOKIE_BOOKLOG,
-    })
+    const booklog = new Booklog(
+      {
+        browser,
+        username: config.booklog.username,
+        password: config.booklog.password,
+        cookiePath: process.env.COOKIE_BOOKLOG,
+      },
+      config.proxy
+    )
     await booklog.login()
     const booklogBooks = await booklog.getBookshelfBooks()
 
@@ -110,6 +124,7 @@ async function main() {
 
 ;(async () => {
   await main().catch(async (err) => {
+    console.log(err)
     await axios
       .post('http://discord-deliver', {
         embed: {

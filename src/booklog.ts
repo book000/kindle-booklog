@@ -3,6 +3,7 @@ import fs from 'fs'
 import axios from 'axios'
 import { parse } from 'csv-parse/sync'
 import { decode } from 'iconv-lite'
+import { authProxy, ProxyOptions } from './proxy-auth'
 
 interface BooklogOptions {
   browser: puppeteer.Browser
@@ -37,11 +38,19 @@ interface Book {
 export default class Booklog {
   private page?: Page
   // eslint-disable-next-line no-useless-constructor
-  constructor(public options: BooklogOptions) {}
+  constructor(
+    public options: BooklogOptions,
+    public proxyOptions?: ProxyOptions
+  ) {}
 
   public async login(): Promise<void> {
     console.log('Booklog.login()')
     this.page = await this.options.browser.newPage()
+
+    if (this.proxyOptions) {
+      await authProxy(this.page, this.proxyOptions)
+    }
+
     const cookiePath = this.options.cookiePath ?? 'cookie-booklog.json'
     if (!this.options.isIgnoreCookie && fs.existsSync(cookiePath)) {
       const cookies = JSON.parse(fs.readFileSync(cookiePath, 'utf-8'))
@@ -82,6 +91,9 @@ export default class Booklog {
           visible: true,
         })
         .then((element) => element?.click()),
+      await this.page?.waitForNavigation({
+        waitUntil: 'networkidle2',
+      }),
     ])
     const cookies = await this.page.cookies()
     fs.writeFileSync(cookiePath, JSON.stringify(cookies))
