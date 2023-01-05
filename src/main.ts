@@ -36,7 +36,7 @@ async function main() {
       product?: Product
       extraPrefsFirefox?: Record<string, unknown>
     } = {
-    headless: false,
+    headless: true,
     slowMo: 100,
     executablePath: '/usr/bin/chromium-browser',
     args: [
