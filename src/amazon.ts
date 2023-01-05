@@ -2,6 +2,7 @@ import fs from 'fs'
 import { authenticator } from 'otplib'
 import { scrollPageToBottom } from 'puppeteer-autoscroll-down'
 import puppeteer, { Page } from 'puppeteer-core'
+import { authProxy, ProxyOptions } from './proxy-auth'
 
 interface AmazonOptions {
   browser: puppeteer.Browser
@@ -14,13 +15,21 @@ interface AmazonOptions {
 
 export default class Amazon {
   private page?: Page
-  constructor(public options: AmazonOptions) {
+  private proxyOptions?: ProxyOptions
+
+  constructor(public options: AmazonOptions, proxyOptions?: ProxyOptions) {
     this.options.isIgnoreCookie = this.options.isIgnoreCookie ?? false
+    this.proxyOptions = proxyOptions
   }
 
   public async login(): Promise<void> {
     console.log('Amazon.login()')
     this.page = await this.options.browser.newPage()
+
+    if (this.proxyOptions) {
+      await authProxy(this.page, this.proxyOptions)
+    }
+
     const cookiePath = this.options.cookiePath ?? 'cookie-amazon.json'
     if (!this.options.isIgnoreCookie && fs.existsSync(cookiePath)) {
       const cookies = JSON.parse(fs.readFileSync(cookiePath, 'utf-8'))
@@ -41,10 +50,19 @@ export default class Amazon {
 
     if (
       !this.options.isIgnoreCookie &&
-      !this.page?.url().startsWith('https://www.amazon.co.jp/ap/signin')
+      this.page?.url().startsWith('https://read.amazon.co.jp/kindle-library')
     ) {
       // already login?
       return
+    } else {
+      // need login
+      await this.page
+        ?.waitForSelector('button#top-sign-in-btn', {
+          visible: true,
+        })
+        .then(async (element) => {
+          await element?.click()
+        })
     }
 
     await this.page
