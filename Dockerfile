@@ -1,16 +1,15 @@
 FROM alpine:edge
 
-RUN apk update
-
-# Install dumb-init
-RUN apk add dumb-init
-
-# japanese font
-RUN apk add --no-cache curl fontconfig font-noto-cjk \
-  && fc-cache -fv
-
-# Installs latest Chromium (76) package.
-RUN apk add --no-cache \
+# hadolint ignore=DL3018
+RUN apk update && \
+  apk add --no-cache \
+  dumb-init \
+  curl \
+  fontconfig \
+  font-noto-cjk \
+  && \
+  fc-cache -fv && \
+  apk add --no-cache \
   chromium \
   nss \
   freetype \
@@ -19,10 +18,9 @@ RUN apk add --no-cache \
   ca-certificates \
   ttf-freefont \
   nodejs \
-  yarn
-
-# timezone
-RUN apk add --update --no-cache tzdata && \
+  yarn \
+  && \
+  apk add --update --no-cache tzdata && \
   cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
   echo "Asia/Tokyo" > /etc/timezone && \
   apk del tzdata
