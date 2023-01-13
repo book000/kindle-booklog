@@ -36,7 +36,7 @@ async function main() {
       product?: Product
       extraPrefsFirefox?: Record<string, unknown>
     } = {
-      // DISPLAYがないときはheadlessモードにする
+    // DISPLAYがないときはheadlessモードにする
     headless: !process.env.DISPLAY,
     slowMo: 100,
     executablePath: '/usr/bin/chromium-browser',
