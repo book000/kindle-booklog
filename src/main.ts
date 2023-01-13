@@ -36,7 +36,7 @@ async function main() {
       product?: Product
       extraPrefsFirefox?: Record<string, unknown>
     } = {
-    headless: true,
+    headless: !!process.env.DISPLAY,
     slowMo: 100,
     executablePath: '/usr/bin/chromium-browser',
     args: [
@@ -117,6 +117,25 @@ async function main() {
     }
     fs.writeFileSync(addedPath, JSON.stringify(addedBooks))
     await booklog.destroy()
+  } catch (err) {
+    const pages = await browser.pages()
+    if (!fs.existsSync('debug')) {
+      fs.mkdirSync('debug')
+    }
+    for (const index in pages) {
+      await pages[index].screenshot({
+        path: `debug/error-${new Date()
+          .toISOString()
+          .replace(/:/g, '-')}-${index}.png`,
+        fullPage: true,
+      })
+      fs.writeFileSync(
+        `debug/error-${new Date()
+          .toISOString()
+          .replace(/:/g, '-')}-${index}.html`,
+        await pages[index].content()
+      )
+    }
   } finally {
     await browser.close()
   }
