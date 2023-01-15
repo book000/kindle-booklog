@@ -26,7 +26,7 @@
     "@typescript-eslint/parser": "^5.1.0",
     "axios": "^1.0.0",
     "csv-parse": "^5.2.0",
-    "eslint": "8.31.0",
+    "eslint": "8.32.0",
     "eslint-config-prettier": "^8.3.0",
     "eslint-config-standard": "^17.0.0",
     "eslint-plugin-import": "2.27.4",
