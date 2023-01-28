@@ -37,5 +37,5 @@ jobs:
         ]
       registry: registry.hub.docker.com
     secrets:
-      DOCKER_USERNAME: ${{ github.actor }}
-      DOCKER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
