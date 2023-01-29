@@ -28,7 +28,7 @@
     "@typescript-eslint/eslint-plugin": "5.1.0",
     "@typescript-eslint/parser": "5.1.0",
     "@vercel/ncc": "0.36.1",
-    "axios": "1.0.0",
+    "axios": "1.2.6",
     "csv-parse": "5.2.0",
     "eslint": "8.32.0",
     "eslint-config-prettier": "8.3.0",
