@@ -13,7 +13,7 @@ COPY tsconfig.json .
 
 RUN yarn package
 
-FROM zenika/alpine-chrome:with-puppeteer-xvfb as runner
+FROM zenika/alpine-chrome:with-puppeteer as runner
 
 # hadolint ignore=DL3002
 USER root
