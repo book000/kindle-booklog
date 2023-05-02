@@ -37,7 +37,6 @@ COPY entrypoint.sh .
 RUN chmod +x entrypoint.sh
 
 ENV TZ Asia/Tokyo
-ENV DISPLAY :99
 ENV CHROMIUM_PATH /usr/bin/chromium-browser
 
 ENTRYPOINT ["tini", "--"]
