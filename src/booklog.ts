@@ -1,4 +1,4 @@
-import puppeteer, { Page } from 'puppeteer-core'
+import { Browser, Page } from 'puppeteer-core'
 import fs from 'fs'
 import axios from 'axios'
 import { parse } from 'csv-parse/sync'
@@ -6,7 +6,7 @@ import { decode } from 'iconv-lite'
 import { authProxy, ProxyOptions } from './proxy-auth'
 
 interface BooklogOptions {
-  browser: puppeteer.Browser
+  browser: Browser
   username: string
   password: string
   cookiePath?: string

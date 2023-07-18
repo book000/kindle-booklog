@@ -1,11 +1,11 @@
 import fs from 'fs'
 import { authenticator } from 'otplib'
 import { scrollPageToBottom } from 'puppeteer-autoscroll-down'
-import puppeteer, { Page } from 'puppeteer-core'
+import { Browser, Page } from 'puppeteer-core'
 import { authProxy, ProxyOptions } from './proxy-auth'
 
 interface AmazonOptions {
-  browser: puppeteer.Browser
+  browser: Browser
   username: string
   password: string
   otpSecret?: string
@@ -93,7 +93,7 @@ export default class Amazon {
       }
     })
     await Promise.all([await this.page?.click('input#signInSubmit')])
-    await this.page.waitForTimeout(3000)
+    await new Promise((resolve) => setTimeout(resolve, 3000))
 
     if (
       this.options.otpSecret &&
