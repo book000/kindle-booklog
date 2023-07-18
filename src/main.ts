@@ -67,7 +67,7 @@ async function main() {
         otpSecret: config.amazon.otpSecret,
         cookiePath: process.env.COOKIE_AMAZON,
       },
-      config.proxy
+      config.proxy,
     )
     await amazon.login()
     const kindleBooks = await amazon.getBooks()
@@ -80,7 +80,7 @@ async function main() {
         password: config.booklog.password,
         cookiePath: process.env.COOKIE_BOOKLOG,
       },
-      config.proxy
+      config.proxy,
     )
     await booklog.login()
     const booklogBooks = await booklog.getBookshelfBooks()
@@ -89,7 +89,7 @@ async function main() {
 
     for (const kindleBook of kindleBooks) {
       const booklogBook = booklogBooks.find(
-        (book) => book.itemId.toUpperCase() === kindleBook.toUpperCase()
+        (book) => book.itemId.toUpperCase() === kindleBook.toUpperCase(),
       )
       if (!booklogBook) {
         newBooks.push(kindleBook)
@@ -133,7 +133,7 @@ async function main() {
         `debug/error-${new Date()
           .toISOString()
           .replace(/:/g, '-')}-${index}.html`,
-        await pages[index].content()
+        await pages[index].content(),
       )
     }
   } finally {

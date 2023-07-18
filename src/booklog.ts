@@ -1,4 +1,4 @@
-import puppeteer, { Page } from 'puppeteer-core'
+import { Browser, Page } from 'puppeteer-core'
 import fs from 'fs'
 import axios from 'axios'
 import { parse } from 'csv-parse/sync'
@@ -6,7 +6,7 @@ import { decode } from 'iconv-lite'
 import { authProxy, ProxyOptions } from './proxy-auth'
 
 interface BooklogOptions {
-  browser: puppeteer.Browser
+  browser: Browser
   username: string
   password: string
   cookiePath?: string
@@ -40,7 +40,7 @@ export default class Booklog {
   // eslint-disable-next-line no-useless-constructor
   constructor(
     public options: BooklogOptions,
-    public proxyOptions?: ProxyOptions
+    public proxyOptions?: ProxyOptions,
   ) {}
 
   public async login(): Promise<void> {
@@ -112,7 +112,7 @@ export default class Booklog {
     })
 
     const url = await this.page.$eval('a#execExport', (elem) =>
-      elem.getAttribute('href')
+      elem.getAttribute('href'),
     )
     if (!url) {
       throw new Error('export url not found')
