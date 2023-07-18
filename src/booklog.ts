@@ -40,7 +40,7 @@ export default class Booklog {
   // eslint-disable-next-line no-useless-constructor
   constructor(
     public options: BooklogOptions,
-    public proxyOptions?: ProxyOptions
+    public proxyOptions?: ProxyOptions,
   ) {}
 
   public async login(): Promise<void> {
@@ -112,7 +112,7 @@ export default class Booklog {
     })
 
     const url = await this.page.$eval('a#execExport', (elem) =>
-      elem.getAttribute('href')
+      elem.getAttribute('href'),
     )
     if (!url) {
       throw new Error('export url not found')

@@ -17,7 +17,10 @@ export default class Amazon {
   private page?: Page
   private proxyOptions?: ProxyOptions
 
-  constructor(public options: AmazonOptions, proxyOptions?: ProxyOptions) {
+  constructor(
+    public options: AmazonOptions,
+    proxyOptions?: ProxyOptions,
+  ) {
     this.options.isIgnoreCookie = this.options.isIgnoreCookie ?? false
     this.proxyOptions = proxyOptions
   }
@@ -83,7 +86,7 @@ export default class Amazon {
       })
     await this.page.evaluate(() => {
       const rememberMe = document.querySelector(
-        'input[name="rememberMe"]'
+        'input[name="rememberMe"]',
       ) as HTMLInputElement
       if (rememberMe) {
         rememberMe.checked = true
@@ -97,7 +100,7 @@ export default class Amazon {
       this.page.url().startsWith('https://www.amazon.co.jp/ap/mfa')
     ) {
       const otpCode = authenticator.generate(
-        this.options.otpSecret.replace(/ /g, '')
+        this.options.otpSecret.replace(/ /g, ''),
       )
       await this.page
         ?.waitForSelector('input#auth-mfa-otpcode', {
@@ -106,7 +109,7 @@ export default class Amazon {
         .then((element) => element?.type(otpCode))
       await this.page.evaluate(() => {
         const rememberMe = document.querySelector(
-          'input#auth-mfa-remember-device'
+          'input#auth-mfa-remember-device',
         ) as HTMLInputElement
         if (rememberMe) {
           rememberMe.checked = true
@@ -150,7 +153,7 @@ export default class Amazon {
     const books = await this.page
       ?.evaluate(() => {
         const books = document.querySelectorAll(
-          'ul#cover > li > div[data-asin]'
+          'ul#cover > li > div[data-asin]',
         )
         return Array.from(books)
           .map((elem) => elem.getAttribute('data-asin') || '')
