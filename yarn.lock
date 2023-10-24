@@ -2217,10 +2217,10 @@ puppeteer-autoscroll-down@1.1.2:
   resolved "https://registry.yarnpkg.com/puppeteer-autoscroll-down/-/puppeteer-autoscroll-down-1.1.2.tgz#44f7da55c51fa8078aab82c7ad2a6ec0a4d3fa05"
   integrity sha512-SSzxBf6Iu2zn6NNqZO1XlU8cqbjVOzhlTh38xLU42srNZjrDXkIAhKandScM0ZwueVOtOs4xSY0FN2S6whlFSA==
 
-puppeteer-core@21.4.0:
-  version "21.4.0"
-  resolved "https://registry.yarnpkg.com/puppeteer-core/-/puppeteer-core-21.4.0.tgz#2a0d69d7e5a6aa5b858a527f3e43e0c7f5e18327"
-  integrity sha512-ONYjYgHItm6i9WdJf+MnRTRPB4HegwPbPfi1jjNN0LCW3rnNich/5hXgZFcn2oWvgFc8DWLDIcwly7C8z+EvIw==
+puppeteer-core@21.4.1:
+  version "21.4.1"
+  resolved "https://registry.yarnpkg.com/puppeteer-core/-/puppeteer-core-21.4.1.tgz#97b69d58aa77dcdc2c64921f9452c0cb4b5b05e8"
+  integrity sha512-Lh0e+oGhUquxVOi1U701gTfFLFvw5gDBFh3CWpnfAvtItmyZKUce4R54VNfOJfi+KKnzhVPdB/lDrg65gdRIng==
   dependencies:
     "@puppeteer/browsers" "1.8.0"
     chromium-bidi "0.4.32"
