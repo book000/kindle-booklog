@@ -1,5 +1,5 @@
 import { Browser, Page } from 'puppeteer-core'
-import fs from 'fs'
+import fs from 'node:fs'
 import axios from 'axios'
 import { parse } from 'csv-parse/sync'
 import { decode } from 'iconv-lite'
@@ -37,7 +37,7 @@ interface Book {
 
 export default class Booklog {
   private page?: Page
-  // eslint-disable-next-line no-useless-constructor
+
   constructor(
     public options: BooklogOptions,
     public proxyOptions?: ProxyOptions,
@@ -53,12 +53,12 @@ export default class Booklog {
 
     const cookiePath = this.options.cookiePath ?? 'cookie-booklog.json'
     if (!this.options.isIgnoreCookie && fs.existsSync(cookiePath)) {
-      const cookies = JSON.parse(fs.readFileSync(cookiePath, 'utf-8'))
+      const cookies = JSON.parse(fs.readFileSync(cookiePath, 'utf8'))
       for (const cookie of cookies) {
         await this.page.setCookie(cookie)
       }
     }
-    await this.page?.goto('https://booklog.jp/login', {
+    await this.page.goto('https://booklog.jp/login', {
       waitUntil: 'networkidle2',
     })
 
@@ -71,13 +71,13 @@ export default class Booklog {
     }
 
     await this.page
-      ?.waitForSelector('input#account', {
+      .waitForSelector('input#account', {
         visible: true,
       })
       .then((element) => element?.type(this.options.username))
 
     await this.page
-      ?.waitForSelector('input#password', {
+      .waitForSelector('input#password', {
         visible: true,
       })
       .then((element) => element?.type(this.options.password))
@@ -86,12 +86,12 @@ export default class Booklog {
 
     // ログインボタンを押して画面が遷移するのを待つ
     await Promise.all([
-      await this.page
-        ?.waitForSelector('button[type="submit"]', {
+      this.page
+        .waitForSelector('button[type="submit"]', {
           visible: true,
         })
         .then((element) => element?.click()),
-      await this.page?.waitForNavigation({
+      this.page.waitForNavigation({
         waitUntil: 'networkidle2',
       }),
     ])
@@ -111,8 +111,8 @@ export default class Booklog {
       visible: true,
     })
 
-    const url = await this.page.$eval('a#execExport', (elem) =>
-      elem.getAttribute('href'),
+    const url = await this.page.$eval('a#execExport', (element) =>
+      element.getAttribute('href'),
     )
     if (!url) {
       throw new Error('export url not found')
@@ -121,7 +121,7 @@ export default class Booklog {
       responseType: 'arraybuffer',
     })
     const data = decode(Buffer.from(response.data), 'windows-31j')
-    const csv = parse(data)
+    const csv: string[][] = parse(data)
     return csv.map((row: string[]) => {
       const book: Book = {
         serviceId: Number(row[0]),
@@ -155,7 +155,7 @@ export default class Booklog {
       waitUntil: 'networkidle2',
     })
     await this.page
-      ?.waitForSelector('button#item-add-button', {
+      .waitForSelector('button#item-add-button', {
         visible: true,
         timeout: 3000,
       })

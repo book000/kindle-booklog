@@ -1,4 +1,4 @@
-import fs from 'fs'
+import fs from 'node:fs'
 import { authenticator } from 'otplib'
 import { scrollPageToBottom } from 'puppeteer-autoscroll-down'
 import { Browser, Page } from 'puppeteer-core'
@@ -35,13 +35,13 @@ export default class Amazon {
 
     const cookiePath = this.options.cookiePath ?? 'cookie-amazon.json'
     if (!this.options.isIgnoreCookie && fs.existsSync(cookiePath)) {
-      const cookies = JSON.parse(fs.readFileSync(cookiePath, 'utf-8'))
+      const cookies = JSON.parse(fs.readFileSync(cookiePath, 'utf8'))
       for (const cookie of cookies) {
-        await this.page?.setCookie(cookie)
+        await this.page.setCookie(cookie)
       }
     }
     await this.page
-      ?.goto('https://read.amazon.co.jp/kindle-library?sortType=recency', {
+      .goto('https://read.amazon.co.jp/kindle-library?sortType=recency', {
         waitUntil: 'networkidle2',
       })
       .catch(async () => {
@@ -53,14 +53,14 @@ export default class Amazon {
 
     if (
       !this.options.isIgnoreCookie &&
-      this.page?.url().startsWith('https://read.amazon.co.jp/kindle-library')
+      this.page.url().startsWith('https://read.amazon.co.jp/kindle-library')
     ) {
       // already login?
       return
     } else {
       // need login
       await this.page
-        ?.waitForSelector('button#top-sign-in-btn', {
+        .waitForSelector('button#top-sign-in-btn', {
           visible: true,
         })
         .then(async (element) => {
@@ -69,7 +69,7 @@ export default class Amazon {
     }
 
     await this.page
-      ?.waitForSelector('input#ap_email', {
+      .waitForSelector('input#ap_email', {
         visible: true,
       })
       .then(async (element) => {
@@ -77,7 +77,7 @@ export default class Amazon {
         await element?.type(this.options.username)
       })
     await this.page
-      ?.waitForSelector('input#ap_password', {
+      .waitForSelector('input#ap_password', {
         visible: true,
       })
       .then(async (element) => {
@@ -85,14 +85,14 @@ export default class Amazon {
         await element?.type(this.options.password)
       })
     await this.page.evaluate(() => {
-      const rememberMe = document.querySelector(
+      const rememberMe = document.querySelector<HTMLInputElement>(
         'input[name="rememberMe"]',
-      ) as HTMLInputElement
+      )
       if (rememberMe) {
         rememberMe.checked = true
       }
     })
-    await Promise.all([await this.page?.click('input#signInSubmit')])
+    await this.page.click('input#signInSubmit')
     await new Promise((resolve) => setTimeout(resolve, 3000))
 
     if (
@@ -100,33 +100,33 @@ export default class Amazon {
       this.page.url().startsWith('https://www.amazon.co.jp/ap/mfa')
     ) {
       const otpCode = authenticator.generate(
-        this.options.otpSecret.replace(/ /g, ''),
+        this.options.otpSecret.replaceAll(' ', ''),
       )
       await this.page
-        ?.waitForSelector('input#auth-mfa-otpcode', {
+        .waitForSelector('input#auth-mfa-otpcode', {
           visible: true,
         })
         .then((element) => element?.type(otpCode))
       await this.page.evaluate(() => {
-        const rememberMe = document.querySelector(
+        const rememberMe = document.querySelector<HTMLInputElement>(
           'input#auth-mfa-remember-device',
-        ) as HTMLInputElement
+        )
         if (rememberMe) {
           rememberMe.checked = true
         }
       })
 
       await Promise.all([
-        await this.page
-          ?.waitForSelector('input#auth-signin-button', {
+        this.page
+          .waitForSelector('input#auth-signin-button', {
             visible: true,
           })
           .then((element) => element?.click()),
-        await this.page?.waitForNavigation(),
+        this.page.waitForNavigation(),
       ])
     }
 
-    const cookies = await this.page?.cookies()
+    const cookies = await this.page.cookies()
     fs.writeFileSync(cookiePath, JSON.stringify(cookies))
   }
 
@@ -136,7 +136,7 @@ export default class Amazon {
       throw new Error('not login')
     }
     await this.page
-      ?.goto('https://read.amazon.co.jp/kindle-library?sortType=recency', {
+      .goto('https://read.amazon.co.jp/kindle-library?sortType=recency', {
         waitUntil: 'networkidle2',
       })
       .catch(async () => {
@@ -150,17 +150,14 @@ export default class Amazon {
       delay: 250,
       stepsLimit: 50,
     })
+
     const books = await this.page
-      ?.evaluate(() => {
-        const books = document.querySelectorAll(
-          'ul#cover > li > div[data-asin]',
-        )
-        return Array.from(books)
-          .map((elem) => elem.getAttribute('data-asin') || '')
-          .filter((elem) => elem)
+      .$$eval('ul#cover > li > div[data-asin]', (elements) => {
+        return elements.map((element) => element.dataset.asin ?? '')
       })
       .catch(() => [])
-    return books ?? []
+
+    return books
   }
 
   public async destroy(): Promise<void> {
