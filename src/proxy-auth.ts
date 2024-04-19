@@ -7,7 +7,7 @@ export interface ProxyOptions {
 }
 
 export async function authProxy(page: Page, config: ProxyOptions) {
-  if (config && config.username && config.password) {
+  if (config.username && config.password) {
     console.log('Login proxy')
     await page.authenticate({
       username: config.username,

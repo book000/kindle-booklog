@@ -1,5 +1,5 @@
 import axios from 'axios'
-import fs from 'fs'
+import fs from 'node:fs'
 import puppeteer, {
   BrowserConnectOptions,
   BrowserLaunchArgumentOptions,
@@ -24,7 +24,7 @@ interface Config {
     username?: string
     password?: string
   }
-  puppeteer: { [key: string]: unknown }
+  puppeteer: Record<string, unknown>
 }
 
 async function main() {
@@ -52,7 +52,7 @@ async function main() {
     ...config.puppeteer,
   }
 
-  if (config.proxy && config.proxy.server) {
+  if (config.proxy?.server) {
     puppeteerOptions.args?.push('--proxy-server=' + config.proxy.server)
   }
 
@@ -98,7 +98,7 @@ async function main() {
 
     // 一度登録した本は除外する
     const addedPath = process.env.ADDED_FILE ?? 'added.json'
-    const addedBooks = fs.existsSync(addedPath)
+    const addedBooks: string[] = fs.existsSync(addedPath)
       ? JSON.parse(fs.readFileSync(addedPath, 'utf8'))
       : []
 
@@ -117,24 +117,27 @@ async function main() {
     }
     fs.writeFileSync(addedPath, JSON.stringify(addedBooks))
     await booklog.destroy()
-  } catch (err) {
+  } catch {
     const pages = await browser.pages()
     if (!fs.existsSync('debug')) {
       fs.mkdirSync('debug')
     }
-    for (const index in pages) {
-      await pages[index].screenshot({
+
+    let index = 0
+    for (const page of pages) {
+      await page.screenshot({
         path: `debug/error-${new Date()
           .toISOString()
-          .replace(/:/g, '-')}-${index}.png`,
+          .replaceAll(':', '-')}-${index}.png`,
         fullPage: true,
       })
       fs.writeFileSync(
         `debug/error-${new Date()
           .toISOString()
-          .replace(/:/g, '-')}-${index}.html`,
-        await pages[index].content(),
+          .replaceAll(':', '-')}-${index}.html`,
+        await page.content(),
       )
+      index++
     }
   } finally {
     await browser.close()
@@ -142,14 +145,14 @@ async function main() {
 }
 
 ;(async () => {
-  await main().catch(async (err) => {
-    console.log(err)
+  await main().catch(async (error: unknown) => {
+    console.log(error)
     await axios
       .post('http://discord-deliver', {
         embed: {
           title: `Error`,
-          description: `${err.message}`,
-          color: 0xff0000,
+          description: (error as Error).message,
+          color: 0xff_00_00,
         },
       })
       .catch(() => null)
