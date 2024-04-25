@@ -34,6 +34,13 @@ async function main() {
   const configPath = process.env.CONFIG_PATH ?? 'data/config.json'
   const config: Config = JSON.parse(fs.readFileSync(configPath, 'utf8'))
 
+  const width = process.env.WINDOW_WIDTH
+    ? Number.parseInt(process.env.WINDOW_WIDTH)
+    : 600
+  const height = process.env.WINDOW_HEIGHT
+    ? Number.parseInt(process.env.WINDOW_HEIGHT)
+    : 1000
+
   // puppeteerの設定
   const puppeteerOptions: LaunchOptions &
     BrowserLaunchArgumentOptions &
@@ -44,6 +51,10 @@ async function main() {
     // DISPLAYがないときはheadlessモードにする
     headless: !process.env.DISPLAY,
     executablePath: process.env.CHROMIUM_PATH ?? '/usr/bin/chromium-browser',
+    defaultViewport: {
+      width,
+      height,
+    },
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -52,6 +63,7 @@ async function main() {
       '--no-first-run',
       '--no-zygote',
       '--disable-gpu',
+      `--window-size=${width},${height}`,
     ],
     ...config.puppeteer,
   }
@@ -169,9 +181,6 @@ async function main() {
         ],
       })
     }
-
-    await amazon.destroy()
-    await booklog.destroy()
   } catch (error) {
     logger.error('Error occurred', error as Error)
     const debugDirectory = process.env.DEBUG_DIRECTORY ?? 'debug'

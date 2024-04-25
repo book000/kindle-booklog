@@ -1,4 +1,4 @@
-FROM zenika/alpine-chrome:with-puppeteer as runner
+FROM zenika/alpine-chrome:with-puppeteer-xvfb as runner
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME/bin:$PATH"
@@ -9,7 +9,7 @@ USER root
 # hadolint ignore=DL3018,DL3016
 RUN apk upgrade --no-cache --available && \
   apk update && \
-  apk add --update --no-cache tzdata && \
+  apk add --update --no-cache tzdata x11vnc && \
   cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
   echo "Asia/Tokyo" > /etc/timezone && \
   apk del tzdata && \
@@ -37,6 +37,8 @@ ENV LOG_DIR /data/logs/
 ENV DEBUG_DIRECTORY /data/debug/
 ENV COOKIE_AMAZON /data/cookie-amazon.json
 ENV COOKIE_BOOKLOG /data/cookie-booklog.json
+ENV WINDOW_WIDTH 1200
+ENV WINDOW_HEIGHT 1700
 
 ENTRYPOINT ["tini", "--"]
 CMD ["/app/entrypoint.sh"]

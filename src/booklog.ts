@@ -1,4 +1,4 @@
-import { Browser, Page } from 'puppeteer-core'
+import { Browser } from 'puppeteer-core'
 import fs from 'node:fs'
 import axios from 'axios'
 import { parse } from 'csv-parse/sync'
@@ -53,8 +53,6 @@ interface BooklogBook {
 }
 
 export default class Booklog {
-  private page?: Page
-
   constructor(
     public options: BooklogOptions,
     public proxyOptions?: ProxyOptions
@@ -62,78 +60,82 @@ export default class Booklog {
 
   public async login(): Promise<void> {
     console.log('Booklog.login()')
-    this.page = await this.options.browser.newPage()
-
+    const page = await this.options.browser.newPage()
     if (this.proxyOptions) {
-      await authProxy(this.page, this.proxyOptions)
+      await authProxy(page, this.proxyOptions)
     }
 
     const cookiePath = this.options.cookiePath ?? 'cookie-booklog.json'
     if (!this.options.isIgnoreCookie && fs.existsSync(cookiePath)) {
       const cookies = JSON.parse(fs.readFileSync(cookiePath, 'utf8'))
       for (const cookie of cookies) {
-        await this.page.setCookie(cookie)
+        await page.setCookie(cookie)
       }
     }
-    await this.page.goto('https://booklog.jp/login', {
+    await page.goto('https://booklog.jp/login', {
       waitUntil: 'networkidle2',
     })
 
     if (
       !this.options.isIgnoreCookie &&
-      this.page.url() !== 'https://booklog.jp/login'
+      page.url() !== 'https://booklog.jp/login'
     ) {
       // already login?
       return
     }
 
-    await this.page
+    await page
       .waitForSelector('input#account', {
         visible: true,
       })
       .then((element) => element?.type(this.options.username))
 
-    await this.page
+    await page
       .waitForSelector('input#password', {
         visible: true,
       })
       .then((element) => element?.type(this.options.password))
 
-    fs.writeFileSync('/data/booklog-login.html', await this.page.content())
+    fs.writeFileSync('/data/booklog-login.html', await page.content())
 
     // ログインボタンを押して画面が遷移するのを待つ
     await Promise.all([
-      this.page
+      page
         .waitForSelector('button[type="submit"]', {
           visible: true,
         })
         .then((element) => element?.click()),
-      this.page.waitForNavigation({
+      page.waitForNavigation({
         waitUntil: 'networkidle2',
       }),
     ])
-    const cookies = await this.page.cookies()
+    const cookies = await page.cookies()
     fs.writeFileSync(cookiePath, JSON.stringify(cookies))
+
+    await page.close()
   }
 
   public async getBookshelfBooks(): Promise<BooklogBook[]> {
     console.log('Booklog.getBookshelfBooks()')
-    if (!this.page) {
-      throw new Error('not login')
+    const page = await this.options.browser.newPage()
+    if (this.proxyOptions) {
+      await authProxy(page, this.proxyOptions)
     }
-    await this.page.goto('https://booklog.jp/export', {
+
+    await page.goto('https://booklog.jp/export', {
       waitUntil: 'networkidle2',
     })
-    await this.page.waitForSelector('a#execExport', {
+    await page.waitForSelector('a#execExport', {
       visible: true,
     })
 
-    const url = await this.page.$eval('a#execExport', (element) =>
+    const url = await page.$eval('a#execExport', (element) =>
       element.getAttribute('href')
     )
     if (!url) {
       throw new Error('export url not found')
     }
+    await page.close()
     const response = await axios.get(url, {
       responseType: 'arraybuffer',
     })
@@ -165,22 +167,25 @@ export default class Booklog {
 
   public async addBookshelfBook(itemId: string): Promise<void> {
     console.log('Booklog.addBookshelfBook()')
-    if (!this.page) {
-      throw new Error('not login')
+    const page = await this.options.browser.newPage()
+    if (this.proxyOptions) {
+      await authProxy(page, this.proxyOptions)
     }
-    await this.page.goto(`https://booklog.jp/edit/1/${itemId}`, {
+
+    await page.goto(`https://booklog.jp/edit/1/${itemId}`, {
       waitUntil: 'networkidle2',
     })
     await Promise.all([
-      this.page
+      page
         .waitForSelector('button#item-add-button', {
           visible: true,
           timeout: 3000,
         })
         .then((element) => element?.click())
         .catch(() => null),
-      this.page.waitForNavigation(),
+      page.waitForNavigation(),
     ])
+    await page.close()
   }
 
   public async updateBookshelfBook(
@@ -188,14 +193,16 @@ export default class Booklog {
     status: BookStatus
   ): Promise<void> {
     console.log('Booklog.updateBookshelfBook()')
-    if (!this.page) {
-      throw new Error('not login')
+    const page = await this.options.browser.newPage()
+    if (this.proxyOptions) {
+      await authProxy(page, this.proxyOptions)
     }
-    await this.page.goto(`https://booklog.jp/edit/1/${itemId}`, {
+
+    await page.goto(`https://booklog.jp/edit/1/${itemId}`, {
       waitUntil: 'networkidle2',
     })
     // td#status p.edit-status > label
-    await this.page.waitForSelector('td#status p.edit-status', {
+    await page.waitForSelector('td#status p.edit-status', {
       visible: true,
     })
 
@@ -204,12 +211,12 @@ export default class Booklog {
     console.log(statusId)
 
     // 読書状況を変更する
-    await this.page
+    await page
       .waitForSelector(`td#status p.edit-status > label[for="${statusId}"]`, {
         visible: true,
       })
       .then((element) => element?.scrollIntoView())
-    await this.page
+    await page
       .waitForSelector(`td#status p.edit-status > label[for="${statusId}"]`, {
         visible: true,
       })
@@ -217,23 +224,16 @@ export default class Booklog {
 
     // 保存ボタンを押して画面が遷移するのを待つ
     await Promise.all([
-      this.page
+      page
         .waitForSelector('div#edit_panels p.buttons button[type="submit"]', {
           visible: true,
         })
         .then((element) => element?.click()),
-      this.page.waitForNavigation({
+      page.waitForNavigation({
         waitUntil: 'networkidle2',
       }),
     ])
-  }
-
-  public async destroy(): Promise<void> {
-    console.log('Booklog.destroy()')
-    if (this.page && !this.page.isClosed()) {
-      await this.page.close()
-      this.page = undefined
-    }
+    await page.close()
   }
 
   private getStatusValue(status: BookStatus): number {
