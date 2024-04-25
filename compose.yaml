@@ -5,5 +5,3 @@ services:
       - type: bind
         source: ./data
         target: /data
-    ports:
-      - '5910:5910'
