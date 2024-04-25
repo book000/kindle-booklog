@@ -1,0 +1,45 @@
+{
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:0-18",
+  "customizations": {
+    "settings": {
+      "git.branchProtection": [
+        "main",
+        "master"
+      ],
+      "editor.formatOnSave": true,
+      "[typescript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.codeActionsOnSave": {
+          "source.organizeImports": false
+        }
+      }
+    },
+    "extensions": [
+      "esbenp.prettier-vscode"
+    ],
+    "vscode": {
+      "settings": {
+        "git.branchProtection": [
+          "main",
+          "master"
+        ],
+        "editor.formatOnSave": true,
+        "[typescript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode",
+          "editor.codeActionsOnSave": {
+            "source.organizeImports": false
+          }
+        }
+      },
+      "extensions": [
+        "esbenp.prettier-vscode"
+      ]
+    }
+  },
+  "otherPortAttributes": {
+    "onAutoForward": "silent"
+  },
+  "waitFor": "postCreateCommand",
+  "postCreateCommand": "pnpm install",
+  "name": "kindle-booklog"
+}

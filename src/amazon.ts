@@ -1,8 +1,13 @@
 import fs from 'node:fs'
 import { authenticator } from 'otplib'
-import { scrollPageToBottom } from 'puppeteer-autoscroll-down'
 import { Browser, Page } from 'puppeteer-core'
 import { authProxy, ProxyOptions } from './proxy-auth'
+import {
+  KindleBook,
+  KindleSearchResponse,
+} from './models/kindle-search-response'
+import tar from 'tar-stream'
+import { KindleRenderMetadata } from './models/kindle-render-metadata'
 
 interface AmazonOptions {
   browser: Browser
@@ -19,7 +24,7 @@ export default class Amazon {
 
   constructor(
     public options: AmazonOptions,
-    proxyOptions?: ProxyOptions,
+    proxyOptions?: ProxyOptions
   ) {
     this.options.isIgnoreCookie = this.options.isIgnoreCookie ?? false
     this.proxyOptions = proxyOptions
@@ -86,7 +91,7 @@ export default class Amazon {
       })
     await this.page.evaluate(() => {
       const rememberMe = document.querySelector<HTMLInputElement>(
-        'input[name="rememberMe"]',
+        'input[name="rememberMe"]'
       )
       if (rememberMe) {
         rememberMe.checked = true
@@ -100,7 +105,7 @@ export default class Amazon {
       this.page.url().startsWith('https://www.amazon.co.jp/ap/mfa')
     ) {
       const otpCode = authenticator.generate(
-        this.options.otpSecret.replaceAll(' ', ''),
+        this.options.otpSecret.replaceAll(' ', '')
       )
       await this.page
         .waitForSelector('input#auth-mfa-otpcode', {
@@ -109,7 +114,7 @@ export default class Amazon {
         .then((element) => element?.type(otpCode))
       await this.page.evaluate(() => {
         const rememberMe = document.querySelector<HTMLInputElement>(
-          'input#auth-mfa-remember-device',
+          'input#auth-mfa-remember-device'
         )
         if (rememberMe) {
           rememberMe.checked = true
@@ -130,34 +135,95 @@ export default class Amazon {
     fs.writeFileSync(cookiePath, JSON.stringify(cookies))
   }
 
-  public async getBooks(): Promise<string[]> {
-    console.log('Amazon.getBooks()')
+  public async getBooks(nextPagenationToken = '0'): Promise<KindleBook[]> {
+    console.log(`Amazon.getBooks(nextPagenationToken=${nextPagenationToken})`)
     if (!this.page) {
       throw new Error('not login')
     }
-    await this.page
-      .goto('https://read.amazon.co.jp/kindle-library?sortType=recency', {
-        waitUntil: 'networkidle2',
-      })
-      .catch(async () => {
-        await this.page?.screenshot({
-          path: '/data/amazon-getbook-1.png',
-          fullPage: true,
-        })
-      })
-    await scrollPageToBottom(this.page, {
-      size: 400,
-      delay: 250,
-      stepsLimit: 50,
+
+    const url = `https://read.amazon.co.jp/kindle-library/search?query=&libraryType=BOOKS&paginationToken=${nextPagenationToken}&sortType=recency&querySize=50`
+    await this.page.goto(url, {
+      waitUntil: 'networkidle2',
     })
+    const json = await this.page.$eval('pre', (element) => element.textContent)
+    if (!json) {
+      throw new Error('json is empty')
+    }
+    const data: KindleSearchResponse = JSON.parse(json)
 
-    const books = await this.page
-      .$$eval('ul#cover > li > div[data-asin]', (elements) => {
-        return elements.map((element) => element.dataset.asin ?? '')
-      })
-      .catch(() => [])
+    if (data.paginationToken) {
+      const nextBooks = await this.getBooks(data.paginationToken)
+      return [...data.itemsList, ...nextBooks]
+    }
 
-    return books
+    return data.itemsList
+  }
+
+  public async getBookPercentageRead(book: KindleBook): Promise<number> {
+    console.log('Amazon.getBookPercentageRead()')
+    if (!this.page) {
+      throw new Error('not login')
+    }
+
+    const url = book.webReaderUrl
+    const promise = this.page.waitForResponse((response) => {
+      return response
+        .url()
+        .startsWith('https://read.amazon.co.jp/renderer/render')
+    })
+    await this.page.goto(url, {
+      waitUntil: 'networkidle2',
+    })
+    const renderResponse = await promise
+
+    const renderUrl = renderResponse.url()
+    const renderUrlObject = new URL(renderUrl)
+    const startingPosition = Number(
+      renderUrlObject.searchParams.get('startingPosition')
+    )
+    if (Number.isNaN(startingPosition)) {
+      throw new TypeError('startingPosition is NaN')
+    }
+
+    const tarball = await renderResponse.buffer()
+    const metadata: KindleRenderMetadata = await new Promise(
+      (resolve, reject) => {
+        const extract = tar.extract()
+        extract.on('entry', (header, stream, next) => {
+          if (header.name === 'metadata.json') {
+            let data = ''
+            stream.on('data', (chunk: { toString: () => string }) => {
+              data += chunk.toString()
+            })
+            stream.on('end', () => {
+              resolve(JSON.parse(data))
+            })
+          } else {
+            stream.resume()
+          }
+          stream.on('end', () => {
+            next()
+          })
+          stream.resume()
+        })
+        extract.on('finish', () => {
+          reject(new Error('data.json not found'))
+        })
+        extract.end(tarball)
+      }
+    )
+
+    // ((firstPositionId ?? 0) + startingPosition) / lastPositionId で割合が出せる。ただし、Number(roughDecimal.toFixed(3)) * 100 した方がいいらしい
+    // ref: https://github.com/Xetera/kindle-api/blob/dc34acf607783aa3a64a9c52ff72bfdbaefcd12b/src/book.ts#L94C28-L94C66
+    const percentageRead =
+      Number(
+        (
+          ((metadata.firstPositionId ?? 0) + startingPosition) /
+          metadata.lastPositionId
+        ).toFixed(3)
+      ) * 100
+
+    return percentageRead
   }
 
   public async destroy(): Promise<void> {

@@ -14,24 +14,41 @@ interface BooklogOptions {
 }
 
 // サービスID, アイテムID, 13桁ISBN, カテゴリ, 評価, 読書状況, レビュー, タグ, 読書メモ(非公開), 登録日時, 読了日, タイトル, 作者名, 出版社名, 発行年, ジャンル, ページ数
-type BookStatus = '読みたい' | 'いま読んでる' | '読み終わった' | '積読'
-interface Book {
+type BookStatus = '読みたい' | 'いま読んでる' | '読み終わった' | '積読' | '' // 未設定は空文字列
+interface BooklogBook {
+  /** サービスID */
   serviceId: number
-  itemId: string // ASINの場合あり
+  /** アイテムID（ASINの場合あり） */
+  itemId: string
+  /** 13桁ISBN */
   isbn: string | null
+  /** カテゴリ */
   category: string | null
+  /** 評価 */
   rate: number | null
+  /** 読書状況 (空白は未設定) */
   status: BookStatus
+  /** レビュー */
   review: string | null
+  /** タグ */
   tags: string[]
+  /** 読書メモ(非公開) */
   memo: string | null
+  /** 登録日時 */
   createdAt: string
+  /** 読了日 */
   readAt: string
+  /** タイトル */
   title: string
+  /** 作者名 */
   author: string
+  /** 出版社名 */
   publisher: string
+  /** 発行年 */
   publishedAt: string
+  /** ジャンル */
   genre: string
+  /** ページ数 */
   pageCount: number | null
 }
 
@@ -40,7 +57,7 @@ export default class Booklog {
 
   constructor(
     public options: BooklogOptions,
-    public proxyOptions?: ProxyOptions,
+    public proxyOptions?: ProxyOptions
   ) {}
 
   public async login(): Promise<void> {
@@ -99,7 +116,7 @@ export default class Booklog {
     fs.writeFileSync(cookiePath, JSON.stringify(cookies))
   }
 
-  public async getBookshelfBooks(): Promise<Book[]> {
+  public async getBookshelfBooks(): Promise<BooklogBook[]> {
     console.log('Booklog.getBookshelfBooks()')
     if (!this.page) {
       throw new Error('not login')
@@ -112,7 +129,7 @@ export default class Booklog {
     })
 
     const url = await this.page.$eval('a#execExport', (element) =>
-      element.getAttribute('href'),
+      element.getAttribute('href')
     )
     if (!url) {
       throw new Error('export url not found')
@@ -123,7 +140,7 @@ export default class Booklog {
     const data = decode(Buffer.from(response.data), 'windows-31j')
     const csv: string[][] = parse(data)
     return csv.map((row: string[]) => {
-      const book: Book = {
+      const book: BooklogBook = {
         serviceId: Number(row[0]),
         itemId: row[1],
         isbn: row[2],
@@ -154,14 +171,61 @@ export default class Booklog {
     await this.page.goto(`https://booklog.jp/edit/1/${itemId}`, {
       waitUntil: 'networkidle2',
     })
+    await Promise.all([
+      this.page
+        .waitForSelector('button#item-add-button', {
+          visible: true,
+          timeout: 3000,
+        })
+        .then((element) => element?.click())
+        .catch(() => null),
+      this.page.waitForNavigation(),
+    ])
+  }
+
+  public async updateBookshelfBook(
+    itemId: string,
+    status: BookStatus
+  ): Promise<void> {
+    console.log('Booklog.updateBookshelfBook()')
+    if (!this.page) {
+      throw new Error('not login')
+    }
+    await this.page.goto(`https://booklog.jp/edit/1/${itemId}`, {
+      waitUntil: 'networkidle2',
+    })
+    // td#status p.edit-status > label
+    await this.page.waitForSelector('td#status p.edit-status', {
+      visible: true,
+    })
+
+    const statusValue = this.getStatusValue(status)
+    const statusId = `status${statusValue}_1_${itemId}`
+    console.log(statusId)
+
+    // 読書状況を変更する
     await this.page
-      .waitForSelector('button#item-add-button', {
+      .waitForSelector(`td#status p.edit-status > label[for="${statusId}"]`, {
         visible: true,
-        timeout: 3000,
+      })
+      .then((element) => element?.scrollIntoView())
+    await this.page
+      .waitForSelector(`td#status p.edit-status > label[for="${statusId}"]`, {
+        visible: true,
       })
       .then((element) => element?.click())
-      .catch(() => null)
-    await this.page.waitForNavigation()
+
+    // 保存ボタンを押して画面が遷移するのを待つ
+    await Promise.all([
+      this.page
+        .waitForSelector('div#edit_panels p.buttons button[type="submit"]', {
+          visible: true,
+        })
+        .then((element) => element?.click()),
+      this.page.waitForNavigation({
+        waitUntil: 'networkidle2',
+      }),
+    ])
   }
 
   public async destroy(): Promise<void> {
@@ -170,5 +234,17 @@ export default class Booklog {
       await this.page.close()
       this.page = undefined
     }
+  }
+
+  private getStatusValue(status: BookStatus): number {
+    return status === ''
+      ? 0
+      : status === '読みたい'
+        ? 1
+        : status === 'いま読んでる'
+          ? 2
+          : status === '読み終わった'
+            ? 3
+            : 4
   }
 }
