@@ -1,0 +1,59 @@
+{
+  "name": "kindle-booklog",
+  "version": "3.0.0",
+  "description": "Get Kindle works purchased at Amazon.co.jp and register them in Booklog.",
+  "homepage": "https://github.com/book000/kindle-booklog",
+  "bugs": {
+    "url": "https://github.com/book000/kindle-booklog/issues"
+  },
+  "license": "MIT",
+  "author": "Tomachi",
+  "private": true,
+  "main": "dist/main.js",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:book000/kindle-booklog.git"
+  },
+  "scripts": {
+    "build": "ts-node -r tsconfig-paths/register ./src/main.ts",
+    "compile": "tsc -p .",
+    "compile:test": "tsc -p . --noEmit",
+    "package": "run-s clean compile packing",
+    "packing": "ncc build ./dist/main.js -o output/ -s",
+    "clean": "rimraf dist output",
+    "lint:prettier": "prettier --check src",
+    "lint:tsc": "tsc",
+    "fix:prettier": "prettier --write src",
+    "preinstall": "npx only-allow pnpm",
+    "start": "tsx ./src/main.ts",
+    "dev": "tsx watch ./src/main.ts",
+    "lint": "run-z lint:prettier,lint:eslint,lint:tsc",
+    "lint:eslint": "eslint . --ext ts,tsx",
+    "fix": "run-z fix:prettier,fix:eslint",
+    "fix:eslint": "eslint . --ext ts,tsx --fix"
+  },
+  "devDependencies": {
+    "@book000/eslint-config": "1.6.1",
+    "@book000/node-utils": "1.13.12",
+    "@types/node": "20.12.7",
+    "@types/tar-stream": "3.1.3",
+    "@vercel/ncc": "0.38.1",
+    "axios": "1.6.8",
+    "csv-parse": "5.5.5",
+    "eslint": "9.1.1",
+    "eslint-config-standard": "17.1.0",
+    "eslint-plugin-import": "2.29.1",
+    "eslint-plugin-n": "17.3.1",
+    "eslint-plugin-promise": "6.1.1",
+    "eslint-plugin-unicorn": "52.0.0",
+    "iconv-lite": "0.6.3",
+    "otplib": "12.0.1",
+    "prettier": "3.2.5",
+    "puppeteer-core": "22.7.1",
+    "run-z": "2.0.0",
+    "tar-stream": "3.1.7",
+    "tsx": "4.7.3",
+    "typescript": "5.4.5"
+  },
+  "packageManager": "pnpm@9.0.6"
+}
