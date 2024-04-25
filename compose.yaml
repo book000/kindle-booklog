@@ -1,9 +1,0 @@
-services:
-  kindle-booklog:
-    build: .
-    volumes:
-      - type: bind
-        source: ./data
-        target: /data
-    ports:
-      - '5910:5910'
