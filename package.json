@@ -25,9 +25,9 @@
     "start": "tsx ./src/main.ts",
     "dev": "tsx watch ./src/main.ts",
     "lint": "run-z lint:prettier,lint:eslint,lint:tsc",
-    "lint:eslint": "eslint . --ext ts,tsx",
+    "lint:eslint": "eslint . -c eslint.config.mjs",
     "fix": "run-z fix:prettier,fix:eslint",
-    "fix:eslint": "eslint . --ext ts,tsx --fix"
+    "fix:eslint": "eslint . -c eslint.config.mjs --fix"
   },
   "devDependencies": {
     "@book000/eslint-config": "1.6.1",
