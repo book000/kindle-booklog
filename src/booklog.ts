@@ -4,6 +4,7 @@ import axios from 'axios'
 import { parse } from 'csv-parse/sync'
 import { decode } from 'iconv-lite'
 import { authProxy, ProxyOptions } from './proxy-auth'
+import BooklogBookUpdater from './booklog-update-book'
 
 interface BooklogOptions {
   browser: Browser
@@ -14,8 +15,13 @@ interface BooklogOptions {
 }
 
 // サービスID, アイテムID, 13桁ISBN, カテゴリ, 評価, 読書状況, レビュー, タグ, 読書メモ(非公開), 登録日時, 読了日, タイトル, 作者名, 出版社名, 発行年, ジャンル, ページ数
-type BookStatus = '読みたい' | 'いま読んでる' | '読み終わった' | '積読' | '' // 未設定は空文字列
-interface BooklogBook {
+export type BookStatus =
+  | '読みたい'
+  | 'いま読んでる'
+  | '読み終わった'
+  | '積読'
+  | '' // 未設定は空文字列
+export interface BooklogBook {
   /** サービスID */
   serviceId: number
   /** アイテムID（ASINの場合あり） */
@@ -28,7 +34,7 @@ interface BooklogBook {
   rate: number | null
   /** 読書状況 (空白は未設定) */
   status: BookStatus
-  /** レビュー */
+  /** レビュー (感想) */
   review: string | null
   /** タグ */
   tags: string[]
@@ -36,8 +42,8 @@ interface BooklogBook {
   memo: string | null
   /** 登録日時 */
   createdAt: string
-  /** 読了日 */
-  readAt: string
+  /** 読了日 (yyyy-MM-dd形式) */
+  readAt: string | null
   /** タイトル */
   title: string
   /** 作者名 */
@@ -52,12 +58,35 @@ interface BooklogBook {
   pageCount: number | null
 }
 
+export type BooklogBookOptions = Partial<
+  Omit<
+    BooklogBook,
+    | 'serviceId'
+    | 'itemId'
+    | 'isbn'
+    | 'title'
+    | 'author'
+    | 'publisher'
+    | 'publishedAt'
+    | 'genre'
+    | 'pageCount'
+  > & {
+    /** 非公開で登録するか */
+    isPrivate: boolean
+    /** レビューをネタバレとするか */
+    isReviewSpoiler: boolean
+  }
+>
+
 export default class Booklog {
   constructor(
     public options: BooklogOptions,
     public proxyOptions?: ProxyOptions
   ) {}
 
+  /**
+   * Booklogにログインする
+   */
   public async login(): Promise<void> {
     console.log('Booklog.login()')
     const page = await this.options.browser.newPage()
@@ -115,6 +144,11 @@ export default class Booklog {
     await page.close()
   }
 
+  /**
+   * 登録されている本の一覧を取得する
+   *
+   * @returns 登録されている本の一覧
+   */
   public async getBookshelfBooks(): Promise<BooklogBook[]> {
     console.log('Booklog.getBookshelfBooks()')
     const page = await this.options.browser.newPage()
@@ -165,6 +199,11 @@ export default class Booklog {
     })
   }
 
+  /**
+   * 本を登録する
+   *
+   * @param itemId アイテムID
+   */
   public async addBookshelfBook(itemId: string): Promise<void> {
     console.log('Booklog.addBookshelfBook()')
     const page = await this.options.browser.newPage()
@@ -185,12 +224,19 @@ export default class Booklog {
         .catch(() => null),
       page.waitForNavigation(),
     ])
+
     await page.close()
   }
 
+  /**
+   * 本の情報を更新する
+   *
+   * @param itemId アイテムID
+   * @param options 更新する情報
+   */
   public async updateBookshelfBook(
     itemId: string,
-    status: BookStatus
+    options: BooklogBookOptions
   ): Promise<void> {
     console.log('Booklog.updateBookshelfBook()')
     const page = await this.options.browser.newPage()
@@ -201,50 +247,8 @@ export default class Booklog {
     await page.goto(`https://booklog.jp/edit/1/${itemId}`, {
       waitUntil: 'networkidle2',
     })
-    // td#status p.edit-status > label
-    await page.waitForSelector('td#status p.edit-status', {
-      visible: true,
-    })
 
-    const statusValue = this.getStatusValue(status)
-    const statusId = `status${statusValue}_1_${itemId}`
-    console.log(statusId)
-
-    // 読書状況を変更する
-    await page
-      .waitForSelector(`td#status p.edit-status > label[for="${statusId}"]`, {
-        visible: true,
-      })
-      .then((element) => element?.scrollIntoView())
-    await page
-      .waitForSelector(`td#status p.edit-status > label[for="${statusId}"]`, {
-        visible: true,
-      })
-      .then((element) => element?.click())
-
-    // 保存ボタンを押して画面が遷移するのを待つ
-    await Promise.all([
-      page
-        .waitForSelector('div#edit_panels p.buttons button[type="submit"]', {
-          visible: true,
-        })
-        .then((element) => element?.click()),
-      page.waitForNavigation({
-        waitUntil: 'networkidle2',
-      }),
-    ])
-    await page.close()
-  }
-
-  private getStatusValue(status: BookStatus): number {
-    return status === ''
-      ? 0
-      : status === '読みたい'
-        ? 1
-        : status === 'いま読んでる'
-          ? 2
-          : status === '読み終わった'
-            ? 3
-            : 4
+    const bookUpdater = new BooklogBookUpdater(page, itemId, options)
+    await bookUpdater.update()
   }
 }
