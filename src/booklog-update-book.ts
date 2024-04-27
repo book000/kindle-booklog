@@ -1,7 +1,10 @@
 import { Page } from 'puppeteer-core'
 import { BookStatus, BooklogBookOptions } from './booklog'
+import { Logger } from '@book000/node-utils'
 
 export default class BooklogUpdateBook {
+  private readonly logger = Logger.configure('BooklogUpdateBook')
+
   constructor(
     private readonly page: Page,
     private readonly itemId: string,
@@ -53,6 +56,9 @@ export default class BooklogUpdateBook {
     if (this.options.isPrivate) {
       await this.setPrivate(this.options.isPrivate)
     }
+
+    // 1秒待つ
+    await new Promise((resolve) => setTimeout(resolve, 1000))
 
     // 保存する
     await this.save()
@@ -151,7 +157,9 @@ export default class BooklogUpdateBook {
       .waitForSelector('td#status div#read_at input#read-date', {
         visible: true,
       })
-      .then((element) => element?.type(readAt))
+      .then((element) =>
+        element?.evaluate((el, readAt) => (el.value = readAt), readAt)
+      )
   }
 
   /**
@@ -200,7 +208,9 @@ export default class BooklogUpdateBook {
       .waitForSelector('div.edit-review-area textarea#edit-review', {
         visible: true,
       })
-      .then((element) => element?.type(review))
+      .then((element) =>
+        element?.evaluate((el, review) => (el.value = review), review)
+      )
 
     // 「ネタバレの内容を含む」のチェックボックスを更新する
     if (isSpoiler !== undefined) {
@@ -223,16 +233,19 @@ export default class BooklogUpdateBook {
    * @param tags タグ
    */
   private async setTags(tags: string[]) {
-    await this.page.waitForSelector('div.edit-tags-area div#tag', {
+    this.logger.info(`Setting tags: ${tags.join(' ')}`)
+    await this.page.waitForSelector('textarea#tags', {
       visible: true,
     })
 
     // タグを設定する
     await this.page
-      .waitForSelector('div.edit-tags-area div#tag input#tag', {
+      .waitForSelector('textarea#tags', {
         visible: true,
       })
-      .then((element) => element?.type(tags.join(' ')))
+      .then((element) =>
+        element?.evaluate((el, tags) => (el.value = tags), tags.join(' '))
+      )
   }
 
   /**
@@ -259,7 +272,9 @@ export default class BooklogUpdateBook {
       .waitForSelector('textarea#memo', {
         visible: true,
       })
-      .then((element) => element?.type(memo))
+      .then((element) =>
+        element?.evaluate((el, memo) => (el.value = memo), memo)
+      )
   }
 
   /**

@@ -30,7 +30,7 @@ interface Config {
 }
 
 /**
- * 新しく追加された本を登録
+ * Kindle本をもとに新しく追加された本をブクログに登録
  *
  * @param booklog Booklogクラスインスタンス
  * @param discord Discordクラスインスタンス
@@ -44,6 +44,8 @@ async function addNewBooks(
   booklogBooks: BooklogBook[]
 ) {
   const logger = Logger.configure('addNewBooks')
+  logger.info('Start adding new books')
+
   const newBooks = kindleBooks.filter(
     (kindleBook) =>
       !booklogBooks.some(
@@ -66,11 +68,24 @@ async function addNewBooks(
       embeds: [
         {
           title: '新しい本を登録しました',
-          description:
-            book.title + ' ' + book.authors.join(', ').replaceAll(':', ', '),
-          url: `https://www.amazon.co.jp/dp/${book.asin}`,
           color: 0x00_ff_00, // green
           fields: [
+            {
+              name: 'Title',
+              value: book.title,
+            },
+            {
+              name: 'Authors',
+              value: book.authors.join(', ').replaceAll(':', ', '),
+            },
+            {
+              name: 'Amazon URL',
+              value: `https://www.amazon.co.jp/dp/${book.asin}`,
+            },
+            {
+              name: 'Booklog URL',
+              value: `https://booklog.jp/item/1/${book.asin}`,
+            },
             {
               name: 'Resource Type',
               value: book.resourceType,
@@ -90,7 +105,7 @@ async function addNewBooks(
 }
 
 /**
- * ステータスが未設定の本を更新
+ * Kindle本をもとにブクログのステータスが未設定の本を更新
  *
  * @param amazon Amazonクラスインスタンス
  * @param booklog Booklogクラスインスタンス
@@ -106,6 +121,8 @@ async function updateUnsetStatusBooks(
   booklogBooks: BooklogBook[]
 ) {
   const logger = Logger.configure('updateUnsetStatusBooks')
+  logger.info('Start updating unset status books')
+
   const statusUnsetBooks = booklogBooks.filter(
     (book) =>
       book.status === '' &&
@@ -147,8 +164,24 @@ async function updateUnsetStatusBooks(
       embeds: [
         {
           title: '本を読み終わりました',
-          description: book.title,
-          url: `https://www.amazon.co.jp/dp/${book.itemId}`,
+          fields: [
+            {
+              name: 'Title',
+              value: book.title,
+            },
+            {
+              name: 'Authors',
+              value: book.author,
+            },
+            {
+              name: 'Amazon URL',
+              value: `https://www.amazon.co.jp/dp/${book.itemId}`,
+            },
+            {
+              name: 'Booklog URL',
+              value: `https://booklog.jp/item/1/${book.itemId}`,
+            },
+          ],
           color: 0x00_ff_00, // green
           footer: {
             text: 'Powered by kindle-booklog',
@@ -159,6 +192,75 @@ async function updateUnsetStatusBooks(
   }
 }
 
+/**
+ * Kindle本をもとにブクログの情報をすべて更新
+ */
+async function updateAllBooks(
+  amazon: Amazon,
+  booklog: Booklog,
+  discord: Discord,
+  kindleBooks: KindleBook[],
+  booklogBooks: BooklogBook[]
+) {
+  const logger = Logger.configure('updateAllBooks')
+  logger.info('Start updating all books')
+
+  for (const book of booklogBooks) {
+    logger.info(`Checking detail of book: ${book.title} (${book.itemId})`)
+    const kindleBook = kindleBooks.find(
+      (kindleBook) =>
+        kindleBook.asin.toUpperCase() === book.itemId.toUpperCase()
+    )
+    if (!kindleBook) {
+      continue
+    }
+    if (!kindleBook.mangaOrComicAsin) {
+      logger.info('This book is not unsupported kindle for web')
+      continue
+    }
+    const percentageRead = await amazon
+      .getBookPercentageRead(kindleBook)
+      .catch(() => null)
+    logger.info(`Percentage read: ${percentageRead}`)
+    if (percentageRead === null) {
+      continue
+    }
+
+    const originType = kindleBook.originType.toLowerCase()
+    const resourceType = kindleBook.resourceType.toLowerCase()
+
+    // 完全に読んでも100%にならないことがあるので、99%以上で読み終わったとする
+    if (percentageRead < 99) {
+      // 読み終わっていない場合、タグだけ更新
+      await booklog.updateBookshelfBook(book.itemId, {
+        tags: [originType, resourceType],
+      })
+      continue
+    }
+
+    logger.info(`Set status to read: ${book.title} (${book.itemId})`)
+    await booklog.updateBookshelfBook(book.itemId, {
+      status: '読み終わった',
+      tags: [originType, resourceType],
+    })
+  }
+
+  await discord.sendMessage({
+    embeds: [
+      {
+        title: '全ての本情報を更新しました',
+        color: 0x00_ff_00, // green
+        footer: {
+          text: 'Powered by kindle-booklog',
+        },
+      },
+    ],
+  })
+}
+
+/**
+ * メイン処理
+ */
 async function main() {
   const logger = Logger.configure('main')
 
@@ -245,6 +347,11 @@ async function main() {
       kindleBooks,
       booklogBooks
     )
+
+    if (process.env.UPDATE_ALL_BOOKS === 'true') {
+      // 全ての本情報を更新
+      await updateAllBooks(amazon, booklog, discord, kindleBooks, booklogBooks)
+    }
   } catch (error) {
     logger.error('Error occurred', error as Error)
     const debugDirectory = process.env.DEBUG_DIRECTORY ?? 'debug'
