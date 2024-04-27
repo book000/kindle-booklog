@@ -44,9 +44,12 @@ export default class Amazon {
       }
     }
     await page
-      .goto('https://read.amazon.co.jp/kindle-library?sortType=recency', {
-        waitUntil: 'networkidle2',
-      })
+      .goto(
+        'https://read.amazon.co.jp/kindle-library?sortType=acquisition_asc',
+        {
+          waitUntil: 'networkidle2',
+        }
+      )
       .catch(async () => {
         await page.screenshot({
           path: '/data/amazon-login0.png',
@@ -142,7 +145,7 @@ export default class Amazon {
       await authProxy(page, this.proxyOptions)
     }
 
-    const url = `https://read.amazon.co.jp/kindle-library/search?query=&libraryType=BOOKS&paginationToken=${nextPagenationToken}&sortType=recency&querySize=50`
+    const url = `https://read.amazon.co.jp/kindle-library/search?query=&libraryType=BOOKS&paginationToken=${nextPagenationToken}&sortType=acquisition_asc&querySize=50`
     await page.goto(url, {
       waitUntil: 'networkidle2',
     })
