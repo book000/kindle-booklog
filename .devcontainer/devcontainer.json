@@ -1,5 +1,12 @@
 {
+  "name": "kindle-booklog",
   "image": "mcr.microsoft.com/devcontainers/typescript-node:1-18",
+  "otherPortsAttributes": {
+    "onAutoForward": "silent"
+  },
+  "postCreateCommand": "corepack enable",
+  "postStartCommand": "pnpm install",
+  "waitFor": "postCreateCommand",
   "customizations": {
     "settings": {
       "git.branchProtection": [
@@ -35,11 +42,5 @@
         "esbenp.prettier-vscode"
       ]
     }
-  },
-  "otherPortAttributes": {
-    "onAutoForward": "silent"
-  },
-  "waitFor": "postCreateCommand",
-  "postCreateCommand": "pnpm install",
-  "name": "kindle-booklog"
+  }
 }
