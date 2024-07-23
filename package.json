@@ -48,7 +48,7 @@
     "run-z": "2.0.0",
     "tar-stream": "3.1.7",
     "tsx": "4.16.2",
-    "typescript": "5.5.3"
+    "typescript": "5.5.4"
   },
   "packageManager": "pnpm@9.6.0"
 }
