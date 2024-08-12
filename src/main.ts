@@ -3,7 +3,7 @@ import puppeteer, {
   BrowserConnectOptions,
   BrowserLaunchArgumentOptions,
   LaunchOptions,
-  Product,
+  SupportedBrowser,
 } from 'puppeteer-core'
 import Amazon from './amazon'
 import Booklog, { BooklogBook } from './booklog'
@@ -278,7 +278,7 @@ async function main() {
   const puppeteerOptions: LaunchOptions &
     BrowserLaunchArgumentOptions &
     BrowserConnectOptions & {
-      product?: Product
+      supportedBrowser?: SupportedBrowser
       extraPrefsFirefox?: Record<string, unknown>
     } = {
     // DISPLAYがないときはheadlessモードにする
