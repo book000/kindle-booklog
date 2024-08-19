@@ -90,13 +90,6 @@ export default class Amazon {
         await element?.click()
       })
       .catch(() => null)
-    page.on('dialog', async (dialog) => {
-      console.log("Found dialog with message: '" + dialog.message() + "'")
-      await dialog.accept()
-    })
-    page.waitForDevicePrompt().then(async (element) => {
-      console.log('Found device prompt', element)
-    })
     await page
       .waitForSelector('input#ap_password', {
         visible: true,
