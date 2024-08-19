@@ -73,31 +73,84 @@ export default class Amazon {
           await element?.click()
         })
     }
+
+    console.log("Waiting for 'div#authportal-center-section'")
+    await page
+      .waitForSelector('div#authportal-center-section', {
+        visible: true,
+      })
+      .then(async () => {
+        console.log(
+          "Found 'div#authportal-center-section'. Setting margin-top to 100px"
+        )
+        await page.evaluate(() => {
+          const centerSection = document.querySelector<HTMLDivElement>(
+            'div#authportal-center-section'
+          )
+          if (centerSection) {
+            centerSection.style.marginTop = '100px'
+          }
+        })
+      })
+
+    console.log("Waiting for 'input#ap_email'")
     await page
       .waitForSelector('input#ap_email', {
         visible: true,
       })
       .then(async (element) => {
+        console.log(
+          "Found 'input#ap_email'. Clicking 3 times and typing username"
+        )
         await element?.click({ clickCount: 3 })
         await element?.type(this.options.username)
       })
+
+    console.log("Waiting for 'input#continue'")
     await page
       .waitForSelector('input#continue', {
         visible: true,
         timeout: 5000,
       })
       .then(async (element) => {
+        console.log("Found 'input#continue'. Clicking")
         await element?.click()
       })
       .catch(() => null)
+
+    console.log("Waiting for 'div#authportal-center-section'")
+    await page
+      .waitForSelector('div#authportal-center-section', {
+        visible: true,
+      })
+      .then(async () => {
+        console.log(
+          "Found 'div#authportal-center-section'. Setting margin-top to 100px"
+        )
+        await page.evaluate(() => {
+          const centerSection = document.querySelector<HTMLDivElement>(
+            'div#authportal-center-section'
+          )
+          if (centerSection) {
+            centerSection.style.marginTop = '100px'
+          }
+        })
+      })
+
+    console.log("Waiting for 'input#ap_password'")
     await page
       .waitForSelector('input#ap_password', {
         visible: true,
       })
       .then(async (element) => {
+        console.log(
+          "Found 'input#ap_password'. Clicking 3 times and typing password"
+        )
         await element?.click({ clickCount: 3 })
         await element?.type(this.options.password)
       })
+
+    console.log("Waiting for 'input#signInSubmit'")
     await page.evaluate(() => {
       const rememberMe = document.querySelector<HTMLInputElement>(
         'input[name="rememberMe"]'
