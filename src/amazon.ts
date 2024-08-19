@@ -106,11 +106,13 @@ export default class Amazon {
         await element?.type(this.options.username)
       })
 
+    await new Promise((resolve) => setTimeout(resolve, 3000))
+
     console.log("Waiting for 'input#continue'")
     await page
       .waitForSelector('input#continue', {
         visible: true,
-        timeout: 5000,
+        timeout: 3000,
       })
       .then(async (element) => {
         console.log("Found 'input#continue'. Clicking")
@@ -137,6 +139,8 @@ export default class Amazon {
         })
       })
 
+    await new Promise((resolve) => setTimeout(resolve, 3000))
+
     console.log("Waiting for 'input#ap_password'")
     await page
       .waitForSelector('input#ap_password', {
@@ -146,9 +150,12 @@ export default class Amazon {
         console.log(
           "Found 'input#ap_password'. Clicking 3 times and typing password"
         )
+
         await element?.click({ clickCount: 3 })
         await element?.type(this.options.password)
       })
+
+    await new Promise((resolve) => setTimeout(resolve, 3000))
 
     console.log("Waiting for 'input#signInSubmit'")
     await page.evaluate(() => {
