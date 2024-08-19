@@ -73,7 +73,6 @@ export default class Amazon {
           await element?.click()
         })
     }
-
     await page
       .waitForSelector('input#ap_email', {
         visible: true,
@@ -82,6 +81,22 @@ export default class Amazon {
         await element?.click({ clickCount: 3 })
         await element?.type(this.options.username)
       })
+    await page
+      .waitForSelector('input#continue', {
+        visible: true,
+        timeout: 5000,
+      })
+      .then(async (element) => {
+        await element?.click()
+      })
+      .catch(() => null)
+    page.on('dialog', async (dialog) => {
+      console.log("Found dialog with message: '" + dialog.message() + "'")
+      await dialog.accept()
+    })
+    page.waitForDevicePrompt().then(async (element) => {
+      console.log('Found device prompt', element)
+    })
     await page
       .waitForSelector('input#ap_password', {
         visible: true,
