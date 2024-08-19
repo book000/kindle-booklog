@@ -130,7 +130,7 @@ export default class Booklog {
     // ログインボタンを押して画面が遷移するのを待つ
     await Promise.all([
       page
-        .waitForSelector('button[type="submit"]', {
+        .waitForSelector('button#login_submit_button', {
           visible: true,
         })
         .then((element) => element?.click()),
