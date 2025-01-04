@@ -98,7 +98,7 @@ export default class Booklog {
     if (!this.options.isIgnoreCookie && fs.existsSync(cookiePath)) {
       const cookies = JSON.parse(fs.readFileSync(cookiePath, 'utf8'))
       for (const cookie of cookies) {
-        await page.setCookie(cookie)
+        await this.options.browser.setCookie(cookie)
       }
     }
     await page.goto('https://booklog.jp/login', {
@@ -138,7 +138,7 @@ export default class Booklog {
         waitUntil: 'networkidle2',
       }),
     ])
-    const cookies = await page.cookies()
+    const cookies = await this.options.browser.cookies()
     fs.writeFileSync(cookiePath, JSON.stringify(cookies))
 
     await page.close()
