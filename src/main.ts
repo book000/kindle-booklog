@@ -1,10 +1,5 @@
 import fs from 'node:fs'
-import puppeteer, {
-  BrowserConnectOptions,
-  BrowserLaunchArgumentOptions,
-  LaunchOptions,
-  SupportedBrowser,
-} from 'puppeteer-core'
+import puppeteer, { LaunchOptions } from 'puppeteer-core'
 import Amazon from './amazon'
 import Booklog, { BooklogBook } from './booklog'
 import { Logger, Discord, DiscordOptions } from '@book000/node-utils'
@@ -275,12 +270,7 @@ async function main() {
     : 1000
 
   // puppeteerの設定
-  const puppeteerOptions: LaunchOptions &
-    BrowserLaunchArgumentOptions &
-    BrowserConnectOptions & {
-      supportedBrowser?: SupportedBrowser
-      extraPrefsFirefox?: Record<string, unknown>
-    } = {
+  const puppeteerOptions: LaunchOptions = {
     // DISPLAYがないときはheadlessモードにする
     headless: !process.env.DISPLAY,
     executablePath: process.env.CHROMIUM_PATH ?? '/usr/bin/chromium-browser',
