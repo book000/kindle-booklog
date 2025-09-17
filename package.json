@@ -34,7 +34,7 @@
     "@book000/node-utils": "1.18.125",
     "@types/node": "22.18.3",
     "@types/tar-stream": "3.1.4",
-    "axios": "1.12.1",
+    "axios": "1.12.2",
     "csv-parse": "6.1.0",
     "eslint": "9.35.0",
     "eslint-config-standard": "17.1.0",
