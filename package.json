@@ -32,7 +32,7 @@
   "devDependencies": {
     "@book000/eslint-config": "1.11.2",
     "@book000/node-utils": "1.18.125",
-    "@types/node": "22.18.8",
+    "@types/node": "22.18.9",
     "@types/tar-stream": "3.1.4",
     "axios": "1.12.2",
     "csv-parse": "6.1.0",
