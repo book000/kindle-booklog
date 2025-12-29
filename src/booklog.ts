@@ -2,7 +2,7 @@ import { Browser } from 'puppeteer-core'
 import fs from 'node:fs'
 import axios from 'axios'
 import { parse } from 'csv-parse/sync'
-import { decode } from 'iconv-lite'
+import iconv from 'iconv-lite'
 import { authProxy, ProxyOptions } from './proxy-auth'
 import BooklogBookUpdater from './booklog-update-book'
 
@@ -173,7 +173,7 @@ export default class Booklog {
     const response = await axios.get(url, {
       responseType: 'arraybuffer',
     })
-    const data = decode(Buffer.from(response.data), 'windows-31j')
+    const data = iconv.decode(Buffer.from(response.data), 'windows-31j')
     const csv: string[][] = parse(data)
     return csv.map((row: string[]) => {
       const book: BooklogBook = {
