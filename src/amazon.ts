@@ -1,5 +1,5 @@
 import fs from 'node:fs'
-import { authenticator } from 'otplib'
+import { authenticator } from '@otplib/v12-adapter'
 import { Browser } from 'puppeteer-core'
 import { authProxy, ProxyOptions } from './proxy-auth'
 import {
