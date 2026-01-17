@@ -14,9 +14,6 @@ importers:
       '@book000/node-utils':
         specifier: 1.24.27
         version: 1.24.27
-      '@otplib/v12-adapter':
-        specifier: 13.0.0
-        version: 13.0.0
       '@types/node':
         specifier: 24.10.8
         version: 24.10.8
@@ -322,9 +319,6 @@ packages:
 
   '@otplib/uri@13.0.0':
     resolution: {integrity: sha512-/0jDNQ6iXYjfMsb1ehiNXZxYqe6B3Rpv/WyvVlEN02cbSLHpuVrHT2m5iICf6k94xJCqLnLcfqNd6EMl7mA4IA==}
-
-  '@otplib/v12-adapter@13.0.0':
-    resolution: {integrity: sha512-Dm3gS9b0u4qGdh5OHPdTlduxadae4P9eg1FItWvZ4mFYW+++cR5IN9HZSvRqRpJsBd5FxdOZ1xwJ9h730wL/nw==}
 
   '@puppeteer/browsers@2.11.1':
     resolution: {integrity: sha512-YmhAxs7XPuxN0j7LJloHpfD1ylhDuFmmwMvfy/+6nBSrETT2ycL53LrhgPtR+f+GcPSybQVuQ5inWWu5MrWCpA==}
@@ -2122,15 +2116,6 @@ snapshots:
   '@otplib/uri@13.0.0':
     dependencies:
       '@otplib/core': 13.0.0
-
-  '@otplib/v12-adapter@13.0.0':
-    dependencies:
-      '@otplib/core': 13.0.0
-      '@otplib/hotp': 13.0.0
-      '@otplib/plugin-base32-scure': 13.0.0
-      '@otplib/plugin-crypto-noble': 13.0.0
-      '@otplib/totp': 13.0.0
-      '@otplib/uri': 13.0.0
 
   '@puppeteer/browsers@2.11.1':
     dependencies:

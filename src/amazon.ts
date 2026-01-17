@@ -1,5 +1,5 @@
 import fs from 'node:fs'
-import { authenticator } from '@otplib/v12-adapter'
+import { TOTP } from 'otplib'
 import { Browser } from 'puppeteer-core'
 import { authProxy, ProxyOptions } from './proxy-auth'
 import {
@@ -173,9 +173,10 @@ export default class Amazon {
       this.options.otpSecret &&
       page.url().startsWith('https://www.amazon.co.jp/ap/mfa')
     ) {
-      const otpCode = authenticator.generate(
-        this.options.otpSecret.replaceAll(' ', '')
-      )
+      const totp = new TOTP()
+      const otpCode = await totp.generate({
+        secret: this.options.otpSecret.replaceAll(' ', ''),
+      })
       await page
         .waitForSelector('input#auth-mfa-otpcode', {
           visible: true,
