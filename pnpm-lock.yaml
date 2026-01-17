@@ -45,8 +45,8 @@ importers:
         specifier: 0.7.2
         version: 0.7.2
       otplib:
-        specifier: 13.0.0
-        version: 13.0.0
+        specifier: 13.1.1
+        version: 13.1.1
       prettier:
         specifier: 3.7.4
         version: 3.7.4
@@ -298,27 +298,27 @@ packages:
     resolution: {integrity: sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ==}
     engines: {node: '>=18.18'}
 
-  '@noble/hashes@1.8.0':
-    resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
-    engines: {node: ^14.21.3 || >=16}
+  '@noble/hashes@2.0.1':
+    resolution: {integrity: sha512-XlOlEbQcE9fmuXxrVTXCTlG2nlRXa9Rj3rr5Ue/+tX+nmkgbX720YHh0VR3hBF9xDvwnb8D2shVGOwNx+ulArw==}
+    engines: {node: '>= 20.19.0'}
 
-  '@otplib/core@13.0.0':
-    resolution: {integrity: sha512-1Tak0FJNWKA1LAfXXzZDhhWIjfKJM4fwbtTjEyAlW7/h1yere3WdrrhdUJftcAc6PjcA4XjeRIBvFrLI8ZVZdg==}
+  '@otplib/core@13.1.1':
+    resolution: {integrity: sha512-K7167w5T5fBtI7FCTrcTyqHPNEKIvyBHFACvJGXci60V30Rt4VDsRHWw/LYtOZRbUqJbPH9orn4N10dYRVi3bw==}
 
-  '@otplib/hotp@13.0.0':
-    resolution: {integrity: sha512-ldZIOcdNWV0aAyDu55OlPuVKoDnmd2RLKsvLjoWF9hA74v5W0QCfY6R2bdJK42NgY7phc32n93PBhAguYwrGbw==}
+  '@otplib/hotp@13.1.1':
+    resolution: {integrity: sha512-2Zht/w3kb9Cv/BPNWC/KvFspztFae38BlteW4KQOn1U+jBj02EMpO3V75OaLGFyz3ZCWzYdLoTRhMkVDCVklDw==}
 
-  '@otplib/plugin-base32-scure@13.0.0':
-    resolution: {integrity: sha512-IUqy+ftsZuwys9pPfodnkYslGX9iiKLX7MPQf16t3c8GXhd4qWtlBeeF6bfNRCn21GR7PxMTh0I7A/fZrihdJA==}
+  '@otplib/plugin-base32-scure@13.1.1':
+    resolution: {integrity: sha512-PAKmU60DOQyfwSP6VDcwP5wRO3GYCC8UgH0+J2wY2XI5OetHDPv27wNjBibE1iO7NMwCnUf1pv0rsTVE5TR9ew==}
 
-  '@otplib/plugin-crypto-noble@13.0.0':
-    resolution: {integrity: sha512-G0OCNdhtQ+e4EwR/TViU7twm33JmmfLpBRu7mtWP+CZeozbG14ulFfTmWM///zNMVCpz8HqnYIIDxrEMeX987Q==}
+  '@otplib/plugin-crypto-noble@13.1.1':
+    resolution: {integrity: sha512-MbgmPWGzhlUG+Jq4sX1UHgdNVEcXqinZy9GUtu2iotHRya815oBVwkiviM/y2qorxuCOIMNTAArD6jKlVv/qiQ==}
 
-  '@otplib/totp@13.0.0':
-    resolution: {integrity: sha512-cCR3dNo+fvYWXs0fqjXcmzlhmzvBEXK46Ond09JIoG8utMxGgh2UJTnzfQx1lLhYNZPEhRpBvS1KFnZS46JPvQ==}
+  '@otplib/totp@13.1.1':
+    resolution: {integrity: sha512-Bbr8C3fLQeUIiAU5sBltPIvPTsGOCmTBln2TjU8wt36nnWMK1p7SsV+VeAk4VYEsGCc4W/ds4M0Pbx4gJMt88A==}
 
-  '@otplib/uri@13.0.0':
-    resolution: {integrity: sha512-/0jDNQ6iXYjfMsb1ehiNXZxYqe6B3Rpv/WyvVlEN02cbSLHpuVrHT2m5iICf6k94xJCqLnLcfqNd6EMl7mA4IA==}
+  '@otplib/uri@13.1.1':
+    resolution: {integrity: sha512-UMdz/41JIKPLw6/VeExc3MJaCHZYEZXlF5WVyhtWT5nfzQKAcgp6HI8Tar0lDN+lXXKCjbGwlyCKOWCMAISNXg==}
 
   '@puppeteer/browsers@2.11.1':
     resolution: {integrity: sha512-YmhAxs7XPuxN0j7LJloHpfD1ylhDuFmmwMvfy/+6nBSrETT2ycL53LrhgPtR+f+GcPSybQVuQ5inWWu5MrWCpA==}
@@ -328,8 +328,8 @@ packages:
   '@rtsao/scc@1.1.0':
     resolution: {integrity: sha512-zt6OdqaDoOnJ1ZYsCYGt9YmWzDXl4vQdKTyJev62gFhRGKdx7mcT54V9KIjg+d2wi9EXsPvAPKe7i7WjfVWB8g==}
 
-  '@scure/base@1.2.6':
-    resolution: {integrity: sha512-g/nm5FgUa//MCj1gV09zTJTaM6KBAHqLN907YVQqf7zC49+DcO4B1so4ZX07Ef10Twr6nuqYEH9GEggFXA4Fmg==}
+  '@scure/base@2.0.0':
+    resolution: {integrity: sha512-3E1kpuZginKkek01ovG8krQ0Z44E3DHPjc5S2rjJw9lZn3KSQOs8S7wqikF/AH7iRanHypj85uGyxk0XAyC37w==}
 
   '@so-ric/colorspace@1.1.6':
     resolution: {integrity: sha512-/KiKkpHNOBgkFJwu9sh48LkHSMYGyuTcSFK/qMBdnOAlrRJzRSXAOFB5qwzaVQuDl8wAvHVMkaASQDReTahxuw==}
@@ -1431,8 +1431,8 @@ packages:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
     engines: {node: '>= 0.8.0'}
 
-  otplib@13.0.0:
-    resolution: {integrity: sha512-C4RC+Lx+dI+vvOA4Z4cZrvV7WSQH919YMROdq65oMdl7bbnT/j4BcuMM1mkAnuScTlHrQ3b66opNBoMXkQEKDQ==}
+  otplib@13.1.1:
+    resolution: {integrity: sha512-cjNU7ENJPwqNK7Qesl6P357B0WB4XmbptHCsGzy14jYcRmQyNwkvl0eT0nzUX0c1djrkOFVIHtNp3Px1vDIpfw==}
 
   own-keys@1.0.1:
     resolution: {integrity: sha512-qFOyK5PjiWZd+QQIh+1jhdb9LpxTF0qs7Pm8o5QHYZ0M3vKqSqzsZaEB6oWlxZ+q2sJBMI/Ktgd2N5ZwQoRHfg==}
@@ -2088,34 +2088,34 @@ snapshots:
 
   '@humanwhocodes/retry@0.4.3': {}
 
-  '@noble/hashes@1.8.0': {}
+  '@noble/hashes@2.0.1': {}
 
-  '@otplib/core@13.0.0': {}
+  '@otplib/core@13.1.1': {}
 
-  '@otplib/hotp@13.0.0':
+  '@otplib/hotp@13.1.1':
     dependencies:
-      '@otplib/core': 13.0.0
-      '@otplib/uri': 13.0.0
+      '@otplib/core': 13.1.1
+      '@otplib/uri': 13.1.1
 
-  '@otplib/plugin-base32-scure@13.0.0':
+  '@otplib/plugin-base32-scure@13.1.1':
     dependencies:
-      '@otplib/core': 13.0.0
-      '@scure/base': 1.2.6
+      '@otplib/core': 13.1.1
+      '@scure/base': 2.0.0
 
-  '@otplib/plugin-crypto-noble@13.0.0':
+  '@otplib/plugin-crypto-noble@13.1.1':
     dependencies:
-      '@noble/hashes': 1.8.0
-      '@otplib/core': 13.0.0
+      '@noble/hashes': 2.0.1
+      '@otplib/core': 13.1.1
 
-  '@otplib/totp@13.0.0':
+  '@otplib/totp@13.1.1':
     dependencies:
-      '@otplib/core': 13.0.0
-      '@otplib/hotp': 13.0.0
-      '@otplib/uri': 13.0.0
+      '@otplib/core': 13.1.1
+      '@otplib/hotp': 13.1.1
+      '@otplib/uri': 13.1.1
 
-  '@otplib/uri@13.0.0':
+  '@otplib/uri@13.1.1':
     dependencies:
-      '@otplib/core': 13.0.0
+      '@otplib/core': 13.1.1
 
   '@puppeteer/browsers@2.11.1':
     dependencies:
@@ -2134,7 +2134,7 @@ snapshots:
 
   '@rtsao/scc@1.1.0': {}
 
-  '@scure/base@1.2.6': {}
+  '@scure/base@2.0.0': {}
 
   '@so-ric/colorspace@1.1.6':
     dependencies:
@@ -3390,14 +3390,14 @@ snapshots:
       type-check: 0.4.0
       word-wrap: 1.2.5
 
-  otplib@13.0.0:
+  otplib@13.1.1:
     dependencies:
-      '@otplib/core': 13.0.0
-      '@otplib/hotp': 13.0.0
-      '@otplib/plugin-base32-scure': 13.0.0
-      '@otplib/plugin-crypto-noble': 13.0.0
-      '@otplib/totp': 13.0.0
-      '@otplib/uri': 13.0.0
+      '@otplib/core': 13.1.1
+      '@otplib/hotp': 13.1.1
+      '@otplib/plugin-base32-scure': 13.1.1
+      '@otplib/plugin-crypto-noble': 13.1.1
+      '@otplib/totp': 13.1.1
+      '@otplib/uri': 13.1.1
 
   own-keys@1.0.1:
     dependencies:
