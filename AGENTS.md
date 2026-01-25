@@ -14,8 +14,6 @@
   - 形式: `<type>(<scope>): <description>`
   - `<description>` は日本語で記載する
   - 例: `feat: Discord 通知機能を追加`
-  - `<description>` は日本語で記載
-  - 例: `feat: Discord 通知機能を追加`
 
 ## 判断記録のルール
 
