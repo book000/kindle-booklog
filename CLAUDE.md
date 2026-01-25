@@ -220,10 +220,13 @@ await page.setCookie(...cookies)
 #### OTP による 2 段階認証
 
 ```typescript
-import { authenticator } from 'otplib'
+import { TOTP } from 'otplib'
 
 // OTP コードを生成
-const otpCode = authenticator.generate(otpSecret)
+const totp = new TOTP()
+const otpCode = await totp.generate({
+  secret: otpSecret.replaceAll(' ', ''),
+})
 
 // OTP フォームに入力
 await page.type('#otp-code', otpCode)
@@ -356,7 +359,7 @@ try {
 
 - Docker Compose で実行する。
 - `compose.yaml`: 通常実行用
-- `compose-all-update.yaml`: 全件更新用（`UPDATE_ALL=true`）
+- `compose-all-update.yaml`: 全件更新用（`UPDATE_ALL_BOOKS=true`）
 - `entrypoint.sh`: コンテナ起動時のエントリーポイント
 
 ### CI/CD

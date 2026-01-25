@@ -140,7 +140,7 @@ docker compose down           # 停止
 
 - Docker Compose で実行する。
 - `compose.yaml`: 通常実行用
-- `compose-all-update.yaml`: 全件更新用（`UPDATE_ALL=true`）
+- `compose-all-update.yaml`: 全件更新用（`UPDATE_ALL_BOOKS=true`）
 - `entrypoint.sh`: コンテナ起動時のエントリーポイント
 
 ### CI/CD
