@@ -46,6 +46,19 @@
 - **実行環境**: Linux（Docker / Docker Compose）
 - **Renovate PR**: Renovate が作成した既存の PR に対して追加コミットや更新を行わない
 
+## Git Worktree
+
+Git Worktree を採用している場合、ディレクトリ構成は以下でなければならない。
+新規ブランチを作成する場合は、ブランチ作成後に Git Worktree を新規作成すること。
+
+```text
+.bare/              # bare リポジトリ（隠しディレクトリ）
+master/             # master ブランチの worktree
+develop/            # develop ブランチの worktree
+feature/
+  x/                # feature/x ブランチの worktree
+```
+
 ## コード改修時のルール
 
 - **日本語と英数字の間**: 半角スペースを挿入する

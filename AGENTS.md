@@ -9,8 +9,11 @@
 - **会話言語**: 日本語
 - **コード内コメント**: 日本語
 - **エラーメッセージ**: 英語
+- **日本語と英数字の間**: 半角スペースを挿入する
 - **コミット規約**: [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) に従う
   - 形式: `<type>(<scope>): <description>`
+  - `<description>` は日本語で記載する
+  - 例: `feat: Discord 通知機能を追加`
   - `<description>` は日本語で記載
   - 例: `feat: Discord 通知機能を追加`
 
@@ -32,6 +35,7 @@
    - package.json を読んで、技術スタックと開発コマンドを理解する
 
 2. **依存関係のインストール**:
+
    ```bash
    pnpm install
    ```
@@ -42,6 +46,7 @@
    - 関数・インターフェースに JSDoc を日本語で記載する
 
 4. **テストと Lint / Format**:
+
    ```bash
    pnpm lint        # Lint チェック
    pnpm fix         # Format 自動修正
