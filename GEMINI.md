@@ -15,7 +15,7 @@
 - **会話言語**: 日本語
 - **コミット規約**: [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) に従う
   - 形式: `<type>(<scope>): <description>`
-  - `<description>` は日本語で記載
+  - `<description>` は日本語で記載する
   - 例: `feat: Discord 通知機能を追加`
 - **日本語と英数字の間**: 半角スペースを挿入する
 
