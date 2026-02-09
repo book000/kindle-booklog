@@ -44,7 +44,7 @@
     "iconv-lite": "0.7.2",
     "otplib": "13.2.1",
     "prettier": "3.8.1",
-    "puppeteer-core": "24.37.1",
+    "puppeteer-core": "24.37.2",
     "run-z": "2.1.0",
     "tar-stream": "3.1.7",
     "tsx": "4.21.0",
