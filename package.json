@@ -42,7 +42,7 @@
     "eslint-plugin-n": "17.23.2",
     "eslint-plugin-promise": "7.2.1",
     "iconv-lite": "0.7.2",
-    "otplib": "13.2.1",
+    "otplib": "13.3.0",
     "prettier": "3.8.1",
     "puppeteer-core": "24.37.2",
     "run-z": "2.1.0",
