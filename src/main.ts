@@ -342,8 +342,8 @@ async function main() {
       // 全ての本情報を更新
       await updateAllBooks(amazon, booklog, discord, kindleBooks, booklogBooks)
     }
-  } catch (error) {
-    logger.error('Error occurred', error as Error)
+  } catch (err) {
+    logger.error('Error occurred', err as Error)
     const debugDirectory = process.env.DEBUG_DIRECTORY ?? 'debug'
     const pages = await browser.pages()
     if (!fs.existsSync(debugDirectory)) {
@@ -372,9 +372,9 @@ async function main() {
         {
           title: 'エラーが発生しました',
           description:
-            error instanceof Error
-              ? error.message + '\n\n' + (error.stack ?? '')
-              : String(error),
+            err instanceof Error
+              ? err.message + '\n\n' + (err.stack ?? '')
+              : String(err),
           color: 0xff_00_00, // red
           footer: {
             text: 'Powered by kindle-booklog',
@@ -388,7 +388,7 @@ async function main() {
 }
 
 ;(async () => {
-  await main().catch((error: unknown) => {
-    console.error(error)
+  await main().catch((err: unknown) => {
+    console.error(err)
   })
 })()
