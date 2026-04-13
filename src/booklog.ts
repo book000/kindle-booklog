@@ -1,6 +1,5 @@
 import { Browser } from 'puppeteer-core'
 import fs from 'node:fs'
-import axios from 'axios'
 import { parse } from 'csv-parse/sync'
 import iconv from 'iconv-lite'
 import { authProxy, ProxyOptions } from './proxy-auth'
@@ -170,10 +169,16 @@ export default class Booklog {
       throw new Error('export url not found')
     }
     await page.close()
-    const response = await axios.get(url, {
-      responseType: 'arraybuffer',
-    })
-    const data = iconv.decode(Buffer.from(response.data), 'windows-31j')
+    const response = await fetch(url)
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch bookshelf export: ${response.status} ${response.statusText}`
+      )
+    }
+    const data = iconv.decode(
+      Buffer.from(await response.arrayBuffer()),
+      'windows-31j'
+    )
     const csv: string[][] = parse(data)
     return csv.map((row: string[]) => {
       const book: BooklogBook = {
