@@ -1,6 +1,6 @@
 # pnpm v11 は Node.js v22.13+ を必要とするため、node:22-alpine をベースとして使用する。
 # zenika/alpine-chrome:with-puppeteer-xvfb (Alpine 3.19 / Node.js 20) は pnpm v11 に対応していない。
-FROM node:22-alpine AS runner
+FROM node:24-alpine AS runner
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME/bin:$PATH"
