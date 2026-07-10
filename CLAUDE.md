@@ -30,7 +30,7 @@ docker compose down    # 停止
 2. `read.amazon.co.jp` から Kindle 作品の ASIN コードを取得
 3. ブクログにログイン（Cookie があれば再利用）
 4. [エクスポートページ](https://booklog.jp/export) から蔵書 CSV を取得
-5. ASIN と `data/added-asins.json` で登録済みを除外
+5. ブクログの蔵書 CSV に含まれる itemId（= ASIN）と照合して登録済みを除外
 6. 新規購入分をブクログの本棚に登録
 7. Discord に通知
 
@@ -42,7 +42,7 @@ docker compose down    # 停止
 - `src/models/` — Kindle レスポンス / メタデータの型定義
 - `entrypoint.sh` — コンテナ起動スクリプト（Xvfb/x11vnc 起動、10 分間隔で再実行）
 
-主要ライブラリ: `puppeteer-core`, `axios`, `csv-parse`, `otplib`, `@book000/node-utils`（Logger / Discord）。
+主要ライブラリ: `puppeteer-core`（ブラウザ自動化・HTTP は page 経由）, `csv-parse`（CSV 解析）, `otplib`（OTP）, `iconv-lite`（CSV 文字コード変換）, `tar-stream`（Kindle レスポンスの tar 展開）, `@book000/node-utils`（Logger / Discord）。
 
 ## コーディング規約
 
