@@ -102,7 +102,7 @@ export default class Amazon {
         console.log(
           "Found 'input#ap_email'. Clicking 3 times and typing username"
         )
-        await element?.click({ clickCount: 3 })
+        await element?.click({ count: 3 })
         await element?.type(this.options.username)
       })
 
@@ -151,7 +151,7 @@ export default class Amazon {
           "Found 'input#ap_password'. Clicking 3 times and typing password"
         )
 
-        await element?.click({ clickCount: 3 })
+        await element?.click({ count: 3 })
         await element?.type(this.options.password)
       })
 
