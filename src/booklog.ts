@@ -15,11 +15,7 @@ interface BooklogOptions {
 
 // サービスID, アイテムID, 13桁ISBN, カテゴリ, 評価, 読書状況, レビュー, タグ, 読書メモ(非公開), 登録日時, 読了日, タイトル, 作者名, 出版社名, 発行年, ジャンル, ページ数
 export type BookStatus =
-  | '読みたい'
-  | 'いま読んでる'
-  | '読み終わった'
-  | '積読'
-  | '' // 未設定は空文字列
+  '読みたい' | 'いま読んでる' | '読み終わった' | '積読' | '' // 未設定は空文字列
 export interface BooklogBook {
   /** サービスID */
   serviceId: number
