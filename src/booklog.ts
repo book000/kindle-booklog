@@ -112,27 +112,29 @@ export default class Booklog {
       return
     }
 
-    await page
-      .waitForSelector('input#account', {
-        visible: true,
-      })
-      .then((element) => element?.type(this.options.username))
+    const accountInput = await page.waitForSelector('input#account', {
+      visible: true,
+    })
+    await accountInput?.type(this.options.username)
 
-    await page
-      .waitForSelector('input#password', {
-        visible: true,
-      })
-      .then((element) => element?.type(this.options.password))
+    const passwordInput = await page.waitForSelector('input#password', {
+      visible: true,
+    })
+    await passwordInput?.type(this.options.password)
 
     fs.writeFileSync('/data/booklog-login.html', await page.content())
 
     // ログインボタンを押して画面が遷移するのを待つ
     await Promise.all([
-      page
-        .waitForSelector('button#login_submit_button', {
-          visible: true,
-        })
-        .then((element) => element?.click()),
+      (async () => {
+        const loginSubmitButton = await page.waitForSelector(
+          'button#login_submit_button',
+          {
+            visible: true,
+          }
+        )
+        await loginSubmitButton?.click()
+      })(),
       page.waitForNavigation({
         waitUntil: 'networkidle2',
       }),
@@ -220,13 +222,20 @@ export default class Booklog {
       waitUntil: 'networkidle2',
     })
     await Promise.all([
-      page
-        .waitForSelector('button#item-add-button', {
-          visible: true,
-          timeout: 3000,
-        })
-        .then((element) => element?.click())
-        .catch(() => null),
+      (async () => {
+        try {
+          const itemAddButton = await page.waitForSelector(
+            'button#item-add-button',
+            {
+              visible: true,
+              timeout: 3000,
+            }
+          )
+          await itemAddButton?.click()
+        } catch {
+          // button#item-add-button が表示されないケース (登録済み等) は無視する
+        }
+      })(),
       page.waitForNavigation(),
     ])
 

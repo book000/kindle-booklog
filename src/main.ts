@@ -41,11 +41,10 @@ async function addNewBooks(
   const logger = Logger.configure('addNewBooks')
   logger.info('Start adding new books')
 
-  const newBooks = kindleBooks.filter(
-    (kindleBook) =>
-      !booklogBooks.some(
-        (book) => book.itemId.toUpperCase() === kindleBook.asin.toUpperCase()
-      )
+  const newBooks = kindleBooks.filter((kindleBook) =>
+    booklogBooks.every(
+      (book) => book.itemId.toUpperCase() !== kindleBook.asin.toUpperCase()
+    )
   )
 
   for (const book of newBooks) {
@@ -139,9 +138,12 @@ async function updateUnsetStatusBooks(
       logger.info('This book is not unsupported kindle for web')
       continue
     }
-    const percentageRead = await amazon
-      .getBookPercentageRead(kindleBook)
-      .catch(() => null)
+    let percentageRead: number | null
+    try {
+      percentageRead = await amazon.getBookPercentageRead(kindleBook)
+    } catch {
+      percentageRead = null
+    }
     logger.info(`Percentage read: ${percentageRead}`)
     if (percentageRead === null) {
       continue
@@ -213,9 +215,12 @@ async function updateAllBooks(
       logger.info('This book is not unsupported kindle for web')
       continue
     }
-    const percentageRead = await amazon
-      .getBookPercentageRead(kindleBook)
-      .catch(() => null)
+    let percentageRead: number | null
+    try {
+      percentageRead = await amazon.getBookPercentageRead(kindleBook)
+    } catch {
+      percentageRead = null
+    }
     logger.info(`Percentage read: ${percentageRead}`)
     if (percentageRead === null) {
       continue
@@ -342,8 +347,8 @@ async function main() {
       // 全ての本情報を更新
       await updateAllBooks(amazon, booklog, discord, kindleBooks, booklogBooks)
     }
-  } catch (err) {
-    logger.error('Error occurred', err as Error)
+  } catch (error) {
+    logger.error('Error occurred', error as Error)
     const debugDirectory = process.env.DEBUG_DIRECTORY ?? 'debug'
     const pages = await browser.pages()
     if (!fs.existsSync(debugDirectory)) {
@@ -372,9 +377,9 @@ async function main() {
         {
           title: 'エラーが発生しました',
           description:
-            err instanceof Error
-              ? err.message + '\n\n' + (err.stack ?? '')
-              : String(err),
+            error instanceof Error
+              ? error.message + '\n\n' + (error.stack ?? '')
+              : String(error),
           color: 0xff_00_00, // red
           footer: {
             text: 'Powered by kindle-booklog',
@@ -388,7 +393,9 @@ async function main() {
 }
 
 ;(async () => {
-  await main().catch((err: unknown) => {
-    console.error(err)
-  })
+  try {
+    await main()
+  } catch (error: unknown) {
+    console.error(error)
+  }
 })()

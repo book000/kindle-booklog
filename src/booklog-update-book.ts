@@ -77,11 +77,15 @@ export default class BooklogUpdateBook {
   private async save() {
     // 保存ボタンを押して画面が遷移するのを待つ
     await Promise.all([
-      this.page
-        .waitForSelector('div#edit_panels p.buttons button[type="submit"]', {
-          visible: true,
-        })
-        .then((element) => element?.click()),
+      (async () => {
+        const submitButton = await this.page.waitForSelector(
+          'div#edit_panels p.buttons button[type="submit"]',
+          {
+            visible: true,
+          }
+        )
+        await submitButton?.click()
+      })(),
       this.page.waitForNavigation({
         waitUntil: 'networkidle2',
       }),
@@ -104,16 +108,20 @@ export default class BooklogUpdateBook {
     const statusId = `status${statusValue}_1_${this.itemId}`
 
     // 読書状況を変更する
-    await this.page
-      .waitForSelector(`td#status p.edit-status > label[for="${statusId}"]`, {
+    const statusLabelToScroll = await this.page.waitForSelector(
+      `td#status p.edit-status > label[for="${statusId}"]`,
+      {
         visible: true,
-      })
-      .then((element) => element?.scrollIntoView())
-    await this.page
-      .waitForSelector(`td#status p.edit-status > label[for="${statusId}"]`, {
+      }
+    )
+    await statusLabelToScroll?.scrollIntoView()
+    const statusLabelToClick = await this.page.waitForSelector(
+      `td#status p.edit-status > label[for="${statusId}"]`,
+      {
         visible: true,
-      })
-      .then((element) => element?.click())
+      }
+    )
+    await statusLabelToClick?.click()
   }
 
   /**
@@ -129,18 +137,24 @@ export default class BooklogUpdateBook {
 
     // 未設定の場合は「読了日を指定しない」にチェックを入れる
     if (readAt === null || readAt === '') {
-      const isReadAtNullChecked = await this.page
-        .waitForSelector('td#status div#read_at input#read_at_null', {
+      const readAtNullCheckbox = await this.page.waitForSelector(
+        'td#status div#read_at input#read_at_null',
+        {
           visible: true,
-        })
-        .then((element) => element?.evaluate((el) => el.checked))
+        }
+      )
+      const isReadAtNullChecked = await readAtNullCheckbox?.evaluate(
+        (element_) => element_.checked
+      )
 
       if (!isReadAtNullChecked) {
-        await this.page
-          .waitForSelector('td#status div#read_at label[for="read_at_null"]', {
+        const readAtNullLabel = await this.page.waitForSelector(
+          'td#status div#read_at label[for="read_at_null"]',
+          {
             visible: true,
-          })
-          .then((element) => element?.click())
+          }
+        )
+        await readAtNullLabel?.click()
       }
       return
     }
@@ -153,13 +167,16 @@ export default class BooklogUpdateBook {
     }
 
     // 読了日を入力する
-    await this.page
-      .waitForSelector('td#status div#read_at input#read-date', {
+    const readDateInput = await this.page.waitForSelector(
+      'td#status div#read_at input#read-date',
+      {
         visible: true,
-      })
-      .then((element) =>
-        element?.evaluate((el, readAt) => (el.value = readAt), readAt)
-      )
+      }
+    )
+    await readDateInput?.evaluate(
+      (element_, readAt) => (element_.value = readAt),
+      readAt
+    )
   }
 
   /**
@@ -178,11 +195,13 @@ export default class BooklogUpdateBook {
 
     // 評価を設定する
     const rateValue = rate ?? 'x'
-    await this.page
-      .waitForSelector(`div.edit-rating img[alt="${rateValue}"]`, {
+    const rateImage = await this.page.waitForSelector(
+      `div.edit-rating img[alt="${rateValue}"]`,
+      {
         visible: true,
-      })
-      .then((element) => element?.click())
+      }
+    )
+    await rateImage?.click()
   }
 
   /**
@@ -204,13 +223,16 @@ export default class BooklogUpdateBook {
     })
 
     // 読了日を入力する
-    await this.page
-      .waitForSelector('div.edit-review-area textarea#edit-review', {
+    const reviewTextarea = await this.page.waitForSelector(
+      'div.edit-review-area textarea#edit-review',
+      {
         visible: true,
-      })
-      .then((element) =>
-        element?.evaluate((el, review) => (el.value = review), review)
-      )
+      }
+    )
+    await reviewTextarea?.evaluate(
+      (element_, review) => (element_.value = review),
+      review
+    )
 
     // 「ネタバレの内容を含む」のチェックボックスを更新する
     if (isSpoiler !== undefined) {
@@ -220,7 +242,9 @@ export default class BooklogUpdateBook {
           visible: true,
         }
       )
-      const isChecked = await netabareInputElement?.evaluate((el) => el.checked)
+      const isChecked = await netabareInputElement?.evaluate(
+        (element) => element.checked
+      )
       if (isChecked !== isSpoiler) {
         await netabareInputElement?.click()
       }
@@ -239,13 +263,13 @@ export default class BooklogUpdateBook {
     })
 
     // タグを設定する
-    await this.page
-      .waitForSelector('textarea#tags', {
-        visible: true,
-      })
-      .then((element) =>
-        element?.evaluate((el, tags) => (el.value = tags), tags.join(' '))
-      )
+    const tagsTextarea = await this.page.waitForSelector('textarea#tags', {
+      visible: true,
+    })
+    await tagsTextarea?.evaluate(
+      (element_, tags) => (element_.value = tags),
+      tags.join(' ')
+    )
   }
 
   /**
@@ -268,13 +292,13 @@ export default class BooklogUpdateBook {
     })
 
     // 読書メモを入力する
-    await this.page
-      .waitForSelector('textarea#memo', {
-        visible: true,
-      })
-      .then((element) =>
-        element?.evaluate((el, memo) => (el.value = memo), memo)
-      )
+    const memoTextarea = await this.page.waitForSelector('textarea#memo', {
+      visible: true,
+    })
+    await memoTextarea?.evaluate(
+      (element_, memo) => (element_.value = memo),
+      memo
+    )
   }
 
   /**
@@ -287,17 +311,17 @@ export default class BooklogUpdateBook {
     })
 
     // 非公開登録のオプションを更新する
-    const isPrivateCheckboxElement = await this.page.waitForSelector(
+    const privateCheckbox = await this.page.waitForSelector(
       'input#book_secret',
       {
         visible: true,
       }
     )
-    const isChecked = await isPrivateCheckboxElement?.evaluate(
-      (el) => el.checked
+    const isChecked = await privateCheckbox?.evaluate(
+      (element) => element.checked
     )
     if (isChecked !== isPrivate) {
-      await isPrivateCheckboxElement?.click()
+      await privateCheckbox?.click()
     }
   }
 
