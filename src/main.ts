@@ -41,11 +41,10 @@ async function addNewBooks(
   const logger = Logger.configure('addNewBooks')
   logger.info('Start adding new books')
 
-  const newBooks = kindleBooks.filter(
-    (kindleBook) =>
-      !booklogBooks.some(
-        (book) => book.itemId.toUpperCase() === kindleBook.asin.toUpperCase()
-      )
+  const newBooks = kindleBooks.filter((kindleBook) =>
+    booklogBooks.every(
+      (book) => book.itemId.toUpperCase() !== kindleBook.asin.toUpperCase()
+    )
   )
 
   for (const book of newBooks) {

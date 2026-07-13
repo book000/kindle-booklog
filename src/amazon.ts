@@ -25,7 +25,7 @@ export default class Amazon {
     public options: AmazonOptions,
     proxyOptions?: ProxyOptions
   ) {
-    this.options.isIgnoreCookie = this.options.isIgnoreCookie ?? false
+    this.options.isIgnoreCookie ??= false
     this.proxyOptions = proxyOptions
   }
 
@@ -63,16 +63,15 @@ export default class Amazon {
     ) {
       // already login?
       return
-    } else {
-      // need login
-      await page
-        .waitForSelector('button#top-sign-in-btn', {
-          visible: true,
-        })
-        .then(async (element) => {
-          await element?.click()
-        })
     }
+    // need login
+    await page
+      .waitForSelector('button#top-sign-in-btn', {
+        visible: true,
+      })
+      .then(async (element) => {
+        await element?.click()
+      })
 
     console.log("Waiting for 'div#authportal-center-section'")
     await page
