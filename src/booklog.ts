@@ -4,6 +4,7 @@ import { parse } from 'csv-parse/sync'
 import iconv from 'iconv-lite'
 import { authProxy, ProxyOptions } from './proxy-auth'
 import BooklogBookUpdater from './booklog-update-book'
+import { restoreCookies } from './cookie-utils'
 
 interface BooklogOptions {
   browser: Browser
@@ -92,9 +93,7 @@ export default class Booklog {
     const cookiePath = this.options.cookiePath ?? 'cookie-booklog.json'
     if (!this.options.isIgnoreCookie && fs.existsSync(cookiePath)) {
       const cookies = JSON.parse(fs.readFileSync(cookiePath, 'utf8'))
-      for (const cookie of cookies) {
-        await this.options.browser.setCookie(cookie)
-      }
+      await restoreCookies(this.options.browser, cookies)
     }
     await page.goto('https://booklog.jp/login', {
       waitUntil: 'networkidle2',

@@ -7,6 +7,7 @@ import type {
   WaitForSelectorOptions,
 } from 'puppeteer-core'
 import { authProxy, ProxyOptions } from './proxy-auth'
+import { restoreCookies } from './cookie-utils'
 import {
   KindleBook,
   KindleSearchResponse,
@@ -101,9 +102,7 @@ export default class Amazon {
     const cookiePath = this.options.cookiePath ?? 'cookie-amazon.json'
     if (!this.options.isIgnoreCookie && fs.existsSync(cookiePath)) {
       const cookies = JSON.parse(fs.readFileSync(cookiePath, 'utf8'))
-      for (const cookie of cookies) {
-        await this.options.browser.setCookie(cookie)
-      }
+      await restoreCookies(this.options.browser, cookies)
     }
     await page
       .goto(
