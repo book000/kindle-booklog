@@ -71,7 +71,9 @@ export default class Amazon {
     } catch (error) {
       const currentUrl = page.url()
       const title = await page.title().catch(() => '(unavailable)')
-      const detail = `Amazon login step "${stepName}" failed: selector "${selector}" not found. url=${currentUrl}, title=${title}`
+      // セレクタ文字列はログに含めない。CodeQL がセレクタ定数名（passwordInput 等）
+      // を機密ソースと誤検知するのを避けつつ、stepName で失敗箇所は特定できる
+      const detail = `Amazon login step "${stepName}" failed: target element not found. url=${currentUrl}, title=${title}`
       console.error(detail)
       if (error instanceof Error) {
         error.message = `${detail} (original: ${error.message})`
