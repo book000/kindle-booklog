@@ -70,10 +70,19 @@ export default class Amazon {
       return await page.waitForSelector(selector, options)
     } catch (error) {
       const currentUrl = page.url()
+      // 認証フロー URL のクエリ文字列に個人情報が乗る可能性に備え、origin + pathname のみを記録する
+      const sanitizedUrl = (() => {
+        try {
+          const url = new URL(currentUrl)
+          return url.origin + url.pathname
+        } catch {
+          return '(invalid url)'
+        }
+      })()
       const title = await page.title().catch(() => '(unavailable)')
       // セレクタ文字列はログに含めない。CodeQL がセレクタ定数名（passwordInput 等）
       // を機密ソースと誤検知するのを避けつつ、stepName で失敗箇所は特定できる
-      const detail = `Amazon login step "${stepName}" failed: target element not found. url=${currentUrl}, title=${title}`
+      const detail = `Amazon login step "${stepName}" failed: target element not found. url=${sanitizedUrl}, title=${title}`
       console.error(detail)
       if (error instanceof Error) {
         error.message = `${detail} (original: ${error.message})`
