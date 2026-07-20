@@ -1,6 +1,11 @@
 import fs from 'node:fs'
-import { TOTP } from 'otplib'
+import { TOTP, NobleCryptoPlugin, ScureBase32Plugin } from 'otplib'
 import { Browser } from 'puppeteer-core'
+import type {
+  Page,
+  ElementHandle,
+  WaitForSelectorOptions,
+} from 'puppeteer-core'
 import { authProxy, ProxyOptions } from './proxy-auth'
 import {
   KindleBook,
@@ -8,6 +13,18 @@ import {
 } from './models/kindle-search-response'
 import tar from 'tar-stream'
 import { KindleRenderMetadata } from './models/kindle-render-metadata'
+
+// Amazon ログインフローで待機・操作するセレクタ。ログ文言とコードの対応を明確にするため集約する
+const LOGIN_SELECTORS = {
+  topSignInButton: 'button#top-sign-in-btn',
+  authPortalCenterSection: 'div#authportal-center-section',
+  emailInput: 'input#ap_email',
+  continueButton: 'input#continue',
+  passwordInput: 'input#ap_password',
+  signInSubmit: 'input#signInSubmit',
+  mfaOtpCode: 'input#auth-mfa-otpcode',
+  mfaSignInButton: 'input#auth-signin-button',
+} as const
 
 interface AmazonOptions {
   browser: Browser
@@ -27,6 +44,40 @@ export default class Amazon {
   ) {
     this.options.isIgnoreCookie ??= false
     this.proxyOptions = proxyOptions
+  }
+
+  /**
+   * 診断情報付きで waitForSelector を実行する。
+   *
+   * タイムアウトなどで失敗した場合、どのログインステップで・どの URL で・
+   * どのページタイトルで失敗したかを error ログに出力し、同じ情報を含めて
+   * エラーメッセージを補強した上で再スローする。これにより main.ts の
+   * catch による Discord 通知でも失敗ステップを判別できる。
+   *
+   * @param page 対象の Page
+   * @param selector 待機するセレクタ
+   * @param stepName ログインフロー上のステップ名（人間可読）
+   * @param options waitForSelector のオプション
+   * @returns 見つかった ElementHandle（見つからない場合は null）
+   */
+  private async waitForSelectorWithDiagnostics(
+    page: Page,
+    selector: string,
+    stepName: string,
+    options?: WaitForSelectorOptions
+  ): Promise<ElementHandle | null> {
+    try {
+      return await page.waitForSelector(selector, options)
+    } catch (error) {
+      const currentUrl = page.url()
+      const title = await page.title().catch(() => '(unavailable)')
+      const detail = `Amazon login step "${stepName}" failed: selector "${selector}" not found. url=${currentUrl}, title=${title}`
+      console.error(detail)
+      if (error instanceof Error) {
+        error.message = `${detail} (original: ${error.message})`
+      }
+      throw error
+    }
   }
 
   public async login(): Promise<void> {
@@ -65,51 +116,52 @@ export default class Amazon {
       return
     }
     // need login
-    await page
-      .waitForSelector('button#top-sign-in-btn', {
-        visible: true,
-      })
-      .then(async (element) => {
-        await element?.click()
-      })
+    await this.waitForSelectorWithDiagnostics(
+      page,
+      LOGIN_SELECTORS.topSignInButton,
+      'wait top sign-in button',
+      { visible: true }
+    ).then(async (element) => {
+      await element?.click()
+    })
 
     console.log("Waiting for 'div#authportal-center-section'")
-    await page
-      .waitForSelector('div#authportal-center-section', {
-        visible: true,
-      })
-      .then(async () => {
-        console.log(
-          "Found 'div#authportal-center-section'. Setting margin-top to 100px"
-        )
-        await page.evaluate(() => {
-          const centerSection = document.querySelector<HTMLDivElement>(
-            'div#authportal-center-section'
-          )
-          if (centerSection) {
-            centerSection.style.marginTop = '100px'
-          }
-        })
-      })
+    await this.waitForSelectorWithDiagnostics(
+      page,
+      LOGIN_SELECTORS.authPortalCenterSection,
+      'wait auth portal (email page)',
+      { visible: true }
+    ).then(async () => {
+      console.log(
+        "Found 'div#authportal-center-section'. Setting margin-top to 100px"
+      )
+      await page.evaluate((selector) => {
+        const centerSection = document.querySelector<HTMLDivElement>(selector)
+        if (centerSection) {
+          centerSection.style.marginTop = '100px'
+        }
+      }, LOGIN_SELECTORS.authPortalCenterSection)
+    })
 
     console.log("Waiting for 'input#ap_email'")
-    await page
-      .waitForSelector('input#ap_email', {
-        visible: true,
-      })
-      .then(async (element) => {
-        console.log(
-          "Found 'input#ap_email'. Clicking 3 times and typing username"
-        )
-        await element?.click({ count: 3 })
-        await element?.type(this.options.username)
-      })
+    await this.waitForSelectorWithDiagnostics(
+      page,
+      LOGIN_SELECTORS.emailInput,
+      'wait email input',
+      { visible: true }
+    ).then(async (element) => {
+      console.log(
+        "Found 'input#ap_email'. Clicking 3 times and typing username"
+      )
+      await element?.click({ count: 3 })
+      await element?.type(this.options.username)
+    })
 
     await new Promise((resolve) => setTimeout(resolve, 3000))
 
     console.log("Waiting for 'input#continue'")
     await page
-      .waitForSelector('input#continue', {
+      .waitForSelector(LOGIN_SELECTORS.continueButton, {
         visible: true,
         timeout: 3000,
       })
@@ -120,39 +172,39 @@ export default class Amazon {
       .catch(() => null)
 
     console.log("Waiting for 'div#authportal-center-section'")
-    await page
-      .waitForSelector('div#authportal-center-section', {
-        visible: true,
-      })
-      .then(async () => {
-        console.log(
-          "Found 'div#authportal-center-section'. Setting margin-top to 100px"
-        )
-        await page.evaluate(() => {
-          const centerSection = document.querySelector<HTMLDivElement>(
-            'div#authportal-center-section'
-          )
-          if (centerSection) {
-            centerSection.style.marginTop = '100px'
-          }
-        })
-      })
+    await this.waitForSelectorWithDiagnostics(
+      page,
+      LOGIN_SELECTORS.authPortalCenterSection,
+      'wait auth portal (password page)',
+      { visible: true }
+    ).then(async () => {
+      console.log(
+        "Found 'div#authportal-center-section'. Setting margin-top to 100px"
+      )
+      await page.evaluate((selector) => {
+        const centerSection = document.querySelector<HTMLDivElement>(selector)
+        if (centerSection) {
+          centerSection.style.marginTop = '100px'
+        }
+      }, LOGIN_SELECTORS.authPortalCenterSection)
+    })
 
     await new Promise((resolve) => setTimeout(resolve, 3000))
 
     console.log("Waiting for 'input#ap_password'")
-    await page
-      .waitForSelector('input#ap_password', {
-        visible: true,
-      })
-      .then(async (element) => {
-        console.log(
-          "Found 'input#ap_password'. Clicking 3 times and typing password"
-        )
+    await this.waitForSelectorWithDiagnostics(
+      page,
+      LOGIN_SELECTORS.passwordInput,
+      'wait password input',
+      { visible: true }
+    ).then(async (element) => {
+      console.log(
+        "Found 'input#ap_password'. Clicking 3 times and typing password"
+      )
 
-        await element?.click({ count: 3 })
-        await element?.type(this.options.password)
-      })
+      await element?.click({ count: 3 })
+      await element?.type(this.options.password)
+    })
 
     await new Promise((resolve) => setTimeout(resolve, 3000))
 
@@ -165,22 +217,27 @@ export default class Amazon {
         rememberMe.checked = true
       }
     })
-    await page.click('input#signInSubmit')
+    await page.click(LOGIN_SELECTORS.signInSubmit)
     await new Promise((resolve) => setTimeout(resolve, 3000))
 
     if (
       this.options.otpSecret &&
       page.url().startsWith('https://www.amazon.co.jp/ap/mfa')
     ) {
-      const totp = new TOTP()
+      // otplib v13 では TOTP の生成に crypto / base32 プラグインの明示指定が必須
+      const totp = new TOTP({
+        crypto: new NobleCryptoPlugin(),
+        base32: new ScureBase32Plugin(),
+      })
       const otpCode = await totp.generate({
         secret: this.options.otpSecret.replaceAll(' ', ''),
       })
-      await page
-        .waitForSelector('input#auth-mfa-otpcode', {
-          visible: true,
-        })
-        .then((element) => element?.type(otpCode))
+      await this.waitForSelectorWithDiagnostics(
+        page,
+        LOGIN_SELECTORS.mfaOtpCode,
+        'wait MFA OTP input',
+        { visible: true }
+      ).then((element) => element?.type(otpCode))
       await page.evaluate(() => {
         const rememberMe = document.querySelector<HTMLInputElement>(
           'input#auth-mfa-remember-device'
@@ -191,11 +248,12 @@ export default class Amazon {
       })
 
       await Promise.all([
-        page
-          .waitForSelector('input#auth-signin-button', {
-            visible: true,
-          })
-          .then((element) => element?.click()),
+        this.waitForSelectorWithDiagnostics(
+          page,
+          LOGIN_SELECTORS.mfaSignInButton,
+          'wait MFA sign-in button',
+          { visible: true }
+        ).then((element) => element?.click()),
         page.waitForNavigation(),
       ])
     }
