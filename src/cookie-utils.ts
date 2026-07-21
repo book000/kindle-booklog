@@ -1,4 +1,4 @@
-import { Browser, CookieParam } from 'puppeteer-core'
+import { Browser, CookieData } from 'puppeteer-core'
 
 /**
  * 保存された Cookie の partitionKey を、
@@ -12,7 +12,7 @@ import { Browser, CookieParam } from 'puppeteer-core'
  * @param cookie 保存された Cookie
  * @returns partitionKey を正規化した Cookie
  */
-export function normalizeCookiePartitionKey(cookie: CookieParam): CookieParam {
+export function normalizeCookiePartitionKey(cookie: CookieData): CookieData {
   const partitionKey = cookie.partitionKey
   if (
     !partitionKey ||
@@ -38,19 +38,22 @@ export function normalizeCookiePartitionKey(cookie: CookieParam): CookieParam {
 }
 
 /**
- * JSON から読み込んだ値が、Cookie として復元できる形（`name` を持つ
- * オブジェクト）かどうかを判定する。
+ * JSON から読み込んだ値が、Cookie として復元できる形（`browser.setCookie`
+ * が必須とする `name` / `value` / `domain` を持つオブジェクト）かどうかを
+ * 判定する。
  *
  * @param value 判定対象の値
  * @returns Cookie として扱える場合は true
  */
-function isRestorableCookie(
-  value: unknown
-): value is CookieParam & { name: string } {
+function isRestorableCookie(value: unknown): value is CookieData {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+  const candidate = value as Partial<CookieData>
   return (
-    typeof value === 'object' &&
-    value !== null &&
-    typeof (value as { name?: unknown }).name === 'string'
+    typeof candidate.name === 'string' &&
+    typeof candidate.value === 'string' &&
+    typeof candidate.domain === 'string'
   )
 }
 
@@ -78,7 +81,9 @@ export async function restoreCookies(
   let failedCount = 0
   for (const cookie of cookies) {
     if (!isRestorableCookie(cookie)) {
-      console.warn('Skipping malformed cookie entry (missing "name")')
+      console.warn(
+        'Skipping malformed cookie entry (missing "name", "value" or "domain")'
+      )
       failedCount++
       continue
     }
