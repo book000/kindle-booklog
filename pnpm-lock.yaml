@@ -48,7 +48,7 @@ importers:
         specifier: 3.9.5
         version: 3.9.5
       puppeteer-core:
-        specifier: npm:rebrowser-puppeteer-core@^24.8.1
+        specifier: npm:rebrowser-puppeteer-core@24.8.1
         version: rebrowser-puppeteer-core@24.8.1
       run-z:
         specifier: 2.1.0
