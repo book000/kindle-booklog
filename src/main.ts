@@ -388,6 +388,7 @@ async function main() {
 
 ;(async () => {
   await main().catch((err: unknown) => {
-    console.error(err)
+    const logger = Logger.configure('main')
+    logger.error('Unhandled error', err as Error)
   })
 })()
