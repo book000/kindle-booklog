@@ -11,16 +11,23 @@ class FakePage {
   public closed = false
   public waitForSelectorCalled = false
   public waitForFunctionCalled = false
+  public gotoWaitUntil: (string | undefined)[] = []
   private currentUrl = 'about:blank'
   private urlChecks = 0
 
   constructor(
     private readonly authenticated: boolean,
-    private readonly manualLoginSucceeds = false
+    private readonly manualLoginSucceeds = false,
+    private gotoFailuresRemaining = 0
   ) {}
 
-  public goto(url: string): Promise<void> {
+  public goto(url: string, options?: { waitUntil?: string }): Promise<void> {
     this.gotoCalls.push(url)
+    this.gotoWaitUntil.push(options?.waitUntil)
+    if (this.gotoFailuresRemaining > 0) {
+      this.gotoFailuresRemaining -= 1
+      return Promise.reject(new Error('transient navigation failure'))
+    }
     this.currentUrl =
       url === BOOKLOG_EXPORT_URL && !this.authenticated
         ? BOOKLOG_LOGIN_URL
@@ -73,6 +80,29 @@ test('認証済みプロファイルでは Booklog の自動ログインを実�
 
   assert.deepEqual(page.gotoCalls, [BOOKLOG_EXPORT_URL])
   assert.equal(page.waitForSelectorCalled, false)
+  assert.equal(page.closed, true)
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('Booklog の画面遷移は network idle ではなく DOMContentLoaded を待つ', async () => {
+  const page = new FakePage(true)
+  const booklog = createBooklog(page)
+
+  await booklog.login()
+
+  assert.deepEqual(page.gotoWaitUntil, ['domcontentloaded'])
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('Booklog の一時的な画面遷移失敗を再試行する', async () => {
+  const page = new FakePage(true, false, 1)
+  const booklog = createBooklog(page)
+
+  await booklog.login()
+
+  assert.deepEqual(page.gotoCalls, [BOOKLOG_EXPORT_URL, BOOKLOG_EXPORT_URL])
   assert.equal(page.closed, true)
 }).catch((error: unknown) => {
   throw error
