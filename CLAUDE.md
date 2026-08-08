@@ -28,7 +28,7 @@ docker compose down    # 停止
 
 1. Amazon.co.jp にログイン（Cookie があれば再利用、OTP 対応）
 2. `read.amazon.co.jp` から Kindle 作品の ASIN コードを取得
-3. ブクログにログイン（Cookie があれば再利用）
+3. `/data/userdata` の永続 Chromium プロファイルでブクログ認証状態を再利用（未認証時は VNC で手動ログイン）
 4. [エクスポートページ](https://booklog.jp/export) から蔵書 CSV を取得
 5. ブクログの蔵書 CSV に含まれる itemId（= ASIN）と照合して登録済みを除外
 6. 新規購入分をブクログの本棚に登録
@@ -36,7 +36,7 @@ docker compose down    # 停止
 
 - `src/main.ts` — 全体の処理フロー
 - `src/amazon.ts` — Amazon ログイン、ASIN 取得、Cookie 保存
-- `src/booklog.ts` — ブクログログイン、CSV 取得、本の登録
+- `src/booklog.ts` — ブクログ認証状態の確認、手動ログイン待機、CSV 取得、本の登録
 - `src/booklog-update-book.ts` — ブクログの本の更新（タグ等）
 - `src/proxy-auth.ts` — Puppeteer のプロキシ認証
 - `src/models/` — Kindle レスポンス / メタデータの型定義
@@ -61,8 +61,9 @@ docker compose down    # 停止
 
 ## セキュリティ / 運用上の注意
 
-- 認証情報（Amazon・ブクログのユーザー名/パスワード、Discord Webhook URL、OTP シークレット）は `data/config.json` で管理し、Git にコミットしない（`data/` は `.gitignore` 済み）。ログに認証情報や個人情報を出力しない。
-- `puppeteer-core` を使うため、実行環境に Chrome / Chromium が必要。
+- 認証情報（Amazon のユーザー名/パスワード、Discord Webhook URL、OTP シークレット）は `data/config.json` で管理し、Git にコミットしない（`data/` は `.gitignore` 済み）。ブクログの ID・パスワードはアプリケーションでは使用せず、`/data/userdata` の認証済み Chromium プロファイルを利用する。ログに認証情報や個人情報を出力しない。
+- `puppeteer-core` を使うため、実行環境に Chrome / Chromium が必要。Docker では `/data/userdata` を `userDataDir` として永続化する。
+- ブクログが未認証の場合はログインフォームを自動送信せず、VNC での手動ログインを待つ。reCAPTCHA 回避や fingerprint 偽装は実装しない。
 - ブクログのエクスポートは時間がかかるためタイムアウトに注意する。
 - `compose.yaml` が通常実行、`compose-all-update.yaml` が全件更新用（`UPDATE_ALL_BOOKS=true`）。
 - Renovate が作成した PR には追加コミットや更新を行わない。

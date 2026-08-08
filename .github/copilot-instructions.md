@@ -4,7 +4,7 @@
 
 ## プロジェクト概要
 
-Amazon.co.jp で購入した Kindle 作品を取得し、ブクログへ自動登録する Node.js / TypeScript アプリ。`puppeteer-core` で Amazon（OTP 2 段階認証対応）とブクログにログインし、ASIN で登録済みを除外して新規分を登録、Discord に通知する。Docker Compose で常駐実行する。
+Amazon.co.jp で購入した Kindle 作品を取得し、ブクログへ自動登録する Node.js / TypeScript アプリ。`puppeteer-core` で Amazon（OTP 2 段階認証対応）を操作し、ブクログは永続 Chromium プロファイルの認証状態を利用する。ASIN で登録済みを除外して新規分を登録し、Discord に通知する。Docker Compose で常駐実行する。
 
 ## 技術スタック
 
@@ -27,7 +27,7 @@ Amazon.co.jp で購入した Kindle 作品を取得し、ブクログへ自動�
 
 ## 重点レビュー観点
 
-- **機密情報**: Amazon / ブクログの認証情報、Discord Webhook URL、OTP シークレットがコード・ログ・テストに直書きされていないか。これらは `data/config.json`（`.gitignore` 済み）で管理する。ログへの個人情報・認証情報の出力がないか。
+- **機密情報**: Amazon の認証情報、Discord Webhook URL、OTP シークレットがコード・ログ・テストに直書きされていないか。これらは `data/config.json`（`.gitignore` 済み）で管理する。ブクログの認証情報をコードから自動送信していないか、`/data/userdata` のブラウザプロファイルを機密データとして扱っているか、ログへの個人情報・認証情報の出力がないか。
 - **Puppeteer の堅牢性**: セレクタ・URL がハードコードされず定数化されているか。待機は `page.waitForSelector()` 等の明示的待機を使い、固定 `sleep` に依存していないか（Amazon / ブクログの UI は変わり得る）。
 - **エラーハンドリング**: 非同期処理に try/catch とログがあり、握りつぶしていないか。
 - **ASIN の除外ロジック**: ブクログ蔵書 CSV の itemId と Kindle の ASIN を照合する登録済み判定を壊し、重複登録・多重通知を招いていないか。

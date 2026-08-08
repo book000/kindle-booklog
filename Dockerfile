@@ -56,7 +56,7 @@ ENV CHROMIUM_PATH=/usr/bin/chromium-browser
 ENV LOG_DIR=/data/logs/
 ENV DEBUG_DIRECTORY=/data/debug/
 ENV COOKIE_AMAZON=/data/cookie-amazon.json
-ENV COOKIE_BOOKLOG=/data/cookie-booklog.json
+ENV BROWSER_USER_DATA_DIR=/data/userdata
 ENV WINDOW_WIDTH=1200
 ENV WINDOW_HEIGHT=1700
 
