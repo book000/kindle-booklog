@@ -1,3 +1,4 @@
+import { setTimeout as delay } from 'node:timers/promises'
 import { Browser } from 'puppeteer-core'
 import { parse } from 'csv-parse/sync'
 import iconv from 'iconv-lite'
@@ -105,15 +106,13 @@ export default class Booklog {
       : DEFAULT_MANUAL_LOGIN_TIMEOUT_MS
 
     console.log('Booklog manual login required. Complete login via VNC.')
-    try {
-      await page.waitForFunction(
-        () => globalThis.location.pathname !== '/login',
-        {
-          timeout: manualLoginTimeoutMs,
-        }
-      )
-    } catch {
-      throw new Error('Booklog manual login required')
+    const manualLoginDeadline = Date.now() + manualLoginTimeoutMs
+    while (page.url().startsWith(BOOKLOG_LOGIN_URL)) {
+      const remainingMs = manualLoginDeadline - Date.now()
+      if (remainingMs <= 0) {
+        throw new Error('Booklog manual login required')
+      }
+      await delay(Math.min(1000, remainingMs))
     }
 
     await page.goto(BOOKLOG_EXPORT_URL, {

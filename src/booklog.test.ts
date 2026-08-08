@@ -10,7 +10,9 @@ class FakePage {
   public gotoCalls: string[] = []
   public closed = false
   public waitForSelectorCalled = false
+  public waitForFunctionCalled = false
   private currentUrl = 'about:blank'
+  private urlChecks = 0
 
   constructor(
     private readonly authenticated: boolean,
@@ -27,15 +29,20 @@ class FakePage {
   }
 
   public url(): string {
+    this.urlChecks += 1
+    if (
+      this.manualLoginSucceeds &&
+      this.currentUrl === BOOKLOG_LOGIN_URL &&
+      this.urlChecks >= 2
+    ) {
+      this.currentUrl = BOOKLOG_EXPORT_URL
+    }
     return this.currentUrl
   }
 
   public waitForFunction(): Promise<void> {
-    if (!this.manualLoginSucceeds) {
-      return Promise.reject(new Error('timeout'))
-    }
-    this.currentUrl = BOOKLOG_EXPORT_URL
-    return Promise.resolve()
+    this.waitForFunctionCalled = true
+    return Promise.reject(new Error('page script evaluation must not run'))
   }
 
   public waitForSelector(): Promise<never> {
@@ -88,6 +95,19 @@ test('未認証なら資格情報を自動送信せず手動ログイン要求�
   }
 
   assert.equal(page.waitForSelectorCalled, false)
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('手動ログイン待ちはページ内 JavaScript を評価せず URL 変化を検出する', async () => {
+  const page = new FakePage(false, true)
+  const booklog = createBooklog(page)
+
+  await booklog.login()
+
+  assert.equal(page.waitForFunctionCalled, false)
+  assert.equal(page.closed, true)
+  assert.deepEqual(page.gotoCalls, [BOOKLOG_EXPORT_URL, BOOKLOG_EXPORT_URL])
 }).catch((error: unknown) => {
   throw error
 })
