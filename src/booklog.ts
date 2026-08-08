@@ -1,17 +1,18 @@
-import { Browser } from 'puppeteer-core'
-import fs from 'node:fs'
+import { setTimeout as delay } from 'node:timers/promises'
+import { Browser, Page } from 'puppeteer-core'
 import { parse } from 'csv-parse/sync'
 import iconv from 'iconv-lite'
 import { authProxy, ProxyOptions } from './proxy-auth'
 import BooklogBookUpdater from './booklog-update-book'
-import { restoreCookies } from './cookie-utils'
+
+const BOOKLOG_LOGIN_URL = 'https://booklog.jp/login'
+const BOOKLOG_EXPORT_URL = 'https://booklog.jp/export'
+const DEFAULT_MANUAL_LOGIN_TIMEOUT_MS = 300_000
+const BOOKLOG_NAVIGATION_MAX_ATTEMPTS = 3
+const BOOKLOG_NAVIGATION_RETRY_DELAY_MS = 500
 
 interface BooklogOptions {
   browser: Browser
-  username: string
-  password: string
-  cookiePath?: string
-  isIgnoreCookie?: boolean
 }
 
 // サービスID, アイテムID, 13桁ISBN, カテゴリ, 評価, 読書状況, レビュー, タグ, 読書メモ(非公開), 登録日時, 読了日, タイトル, 作者名, 出版社名, 発行年, ジャンル, ページ数
@@ -81,6 +82,33 @@ export default class Booklog {
   ) {}
 
   /**
+   * Booklog のページへ遷移する。外部リソースの通信完了は待たず、
+   * 一時的な遷移失敗は再試行する。
+   *
+   * @param page ページ
+   * @param url 遷移先URL
+   */
+  private async navigate(page: Page, url: string): Promise<void> {
+    for (
+      let attempt = 1;
+      attempt <= BOOKLOG_NAVIGATION_MAX_ATTEMPTS;
+      attempt++
+    ) {
+      try {
+        await page.goto(url, {
+          waitUntil: 'domcontentloaded',
+        })
+        return
+      } catch (error) {
+        if (attempt === BOOKLOG_NAVIGATION_MAX_ATTEMPTS) {
+          throw error
+        }
+        await delay(BOOKLOG_NAVIGATION_RETRY_DELAY_MS * attempt)
+      }
+    }
+  }
+
+  /**
    * Booklogにログインする
    */
   public async login(): Promise<void> {
@@ -90,50 +118,34 @@ export default class Booklog {
       await authProxy(page, this.proxyOptions)
     }
 
-    const cookiePath = this.options.cookiePath ?? 'cookie-booklog.json'
-    if (!this.options.isIgnoreCookie && fs.existsSync(cookiePath)) {
-      const cookies = JSON.parse(fs.readFileSync(cookiePath, 'utf8'))
-      await restoreCookies(this.options.browser, cookies)
-    }
-    await page.goto('https://booklog.jp/login', {
-      waitUntil: 'networkidle2',
-    })
-
-    if (
-      !this.options.isIgnoreCookie &&
-      page.url() !== 'https://booklog.jp/login'
-    ) {
-      // already login?
+    await this.navigate(page, BOOKLOG_EXPORT_URL)
+    if (!page.url().startsWith(BOOKLOG_LOGIN_URL)) {
+      await page.close()
       return
     }
 
-    await page
-      .waitForSelector('input#account', {
-        visible: true,
-      })
-      .then((element) => element?.type(this.options.username))
+    const configuredTimeout = Number.parseInt(
+      process.env.BOOKLOG_MANUAL_LOGIN_TIMEOUT_MS ?? '',
+      10
+    )
+    const manualLoginTimeoutMs = Number.isFinite(configuredTimeout)
+      ? configuredTimeout
+      : DEFAULT_MANUAL_LOGIN_TIMEOUT_MS
 
-    await page
-      .waitForSelector('input#password', {
-        visible: true,
-      })
-      .then((element) => element?.type(this.options.password))
+    console.log('Booklog manual login required. Complete login via VNC.')
+    const manualLoginDeadline = Date.now() + manualLoginTimeoutMs
+    while (page.url().startsWith(BOOKLOG_LOGIN_URL)) {
+      const remainingMs = manualLoginDeadline - Date.now()
+      if (remainingMs <= 0) {
+        throw new Error('Booklog manual login required')
+      }
+      await delay(Math.min(1000, remainingMs))
+    }
 
-    fs.writeFileSync('/data/booklog-login.html', await page.content())
-
-    // ログインボタンを押して画面が遷移するのを待つ
-    await Promise.all([
-      page
-        .waitForSelector('button#login_submit_button', {
-          visible: true,
-        })
-        .then((element) => element?.click()),
-      page.waitForNavigation({
-        waitUntil: 'networkidle2',
-      }),
-    ])
-    const cookies = await this.options.browser.cookies()
-    fs.writeFileSync(cookiePath, JSON.stringify(cookies))
+    await this.navigate(page, BOOKLOG_EXPORT_URL)
+    if (page.url().startsWith(BOOKLOG_LOGIN_URL)) {
+      throw new Error('Booklog manual login required')
+    }
 
     await page.close()
   }
@@ -150,9 +162,10 @@ export default class Booklog {
       await authProxy(page, this.proxyOptions)
     }
 
-    await page.goto('https://booklog.jp/export', {
-      waitUntil: 'networkidle2',
-    })
+    await this.navigate(page, BOOKLOG_EXPORT_URL)
+    if (page.url().startsWith(BOOKLOG_LOGIN_URL)) {
+      throw new Error('Booklog authentication required')
+    }
     await page.waitForSelector('a#execExport', {
       visible: true,
     })
@@ -211,9 +224,7 @@ export default class Booklog {
       await authProxy(page, this.proxyOptions)
     }
 
-    await page.goto(`https://booklog.jp/edit/1/${itemId}`, {
-      waitUntil: 'networkidle2',
-    })
+    await this.navigate(page, `https://booklog.jp/edit/1/${itemId}`)
     await Promise.all([
       page
         .waitForSelector('button#item-add-button', {
@@ -222,7 +233,9 @@ export default class Booklog {
         })
         .then((element) => element?.click())
         .catch(() => null),
-      page.waitForNavigation(),
+      page.waitForNavigation({
+        waitUntil: 'domcontentloaded',
+      }),
     ])
 
     await page.close()
@@ -244,9 +257,7 @@ export default class Booklog {
       await authProxy(page, this.proxyOptions)
     }
 
-    await page.goto(`https://booklog.jp/edit/1/${itemId}`, {
-      waitUntil: 'networkidle2',
-    })
+    await this.navigate(page, `https://booklog.jp/edit/1/${itemId}`)
 
     const bookUpdater = new BooklogBookUpdater(page, itemId, options)
     await bookUpdater.update()

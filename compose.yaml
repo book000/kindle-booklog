@@ -6,4 +6,4 @@ services:
         source: ./data
         target: /data
     ports:
-      - "5910:5910"
+      - '127.0.0.1:5910:5910'

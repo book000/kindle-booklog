@@ -11,10 +11,6 @@ interface Config {
     password: string
     otpSecret?: string
   }
-  booklog: {
-    username: string
-    password: string
-  }
   discord: DiscordOptions
   proxy?: {
     server: string
@@ -273,6 +269,7 @@ async function main() {
     // DISPLAYがないときはheadlessモードにする
     headless: !process.env.DISPLAY,
     executablePath: process.env.CHROMIUM_PATH ?? '/usr/bin/chromium-browser',
+    userDataDir: process.env.BROWSER_USER_DATA_DIR ?? 'data/userdata',
     defaultViewport: {
       width,
       height,
@@ -313,15 +310,7 @@ async function main() {
     await amazon.login()
     const kindleBooks = await amazon.getBooks()
 
-    const booklog = new Booklog(
-      {
-        browser,
-        username: config.booklog.username,
-        password: config.booklog.password,
-        cookiePath: process.env.COOKIE_BOOKLOG ?? 'data/cookie-booklog.json',
-      },
-      config.proxy
-    )
+    const booklog = new Booklog({ browser }, config.proxy)
     await booklog.login()
     const booklogBooks = await booklog.getBookshelfBooks()
 

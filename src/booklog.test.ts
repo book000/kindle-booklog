@@ -1,0 +1,197 @@
+import assert from 'node:assert/strict'
+import { test } from 'node:test'
+import type { Browser } from 'puppeteer-core'
+import Booklog from './booklog'
+
+const BOOKLOG_EXPORT_URL = 'https://booklog.jp/export'
+const BOOKLOG_LOGIN_URL = 'https://booklog.jp/login'
+
+class FakePage {
+  public gotoCalls: string[] = []
+  public closed = false
+  public waitForSelectorCalled = false
+  public waitForFunctionCalled = false
+  public gotoWaitUntil: (string | undefined)[] = []
+  private currentUrl = 'about:blank'
+  private urlChecks = 0
+
+  constructor(
+    private readonly authenticated: boolean,
+    private readonly manualLoginSucceeds = false,
+    private gotoFailuresRemaining = 0
+  ) {}
+
+  public goto(url: string, options?: { waitUntil?: string }): Promise<void> {
+    this.gotoCalls.push(url)
+    this.gotoWaitUntil.push(options?.waitUntil)
+    if (this.gotoFailuresRemaining > 0) {
+      this.gotoFailuresRemaining -= 1
+      return Promise.reject(new Error('transient navigation failure'))
+    }
+    this.currentUrl =
+      url === BOOKLOG_EXPORT_URL && !this.authenticated
+        ? BOOKLOG_LOGIN_URL
+        : url
+    return Promise.resolve()
+  }
+
+  public url(): string {
+    this.urlChecks += 1
+    if (
+      this.manualLoginSucceeds &&
+      this.currentUrl === BOOKLOG_LOGIN_URL &&
+      this.urlChecks >= 2
+    ) {
+      this.currentUrl = BOOKLOG_EXPORT_URL
+    }
+    return this.currentUrl
+  }
+
+  public waitForFunction(): Promise<void> {
+    this.waitForFunctionCalled = true
+    return Promise.reject(new Error('page script evaluation must not run'))
+  }
+
+  public waitForSelector(): Promise<never> {
+    this.waitForSelectorCalled = true
+    return Promise.reject(new Error('automatic login must not run'))
+  }
+
+  public close(): Promise<void> {
+    this.closed = true
+    return Promise.resolve()
+  }
+}
+
+class FakeMutationPage {
+  public waitForNavigationOptions: { waitUntil?: string }[] = []
+  public closed = false
+
+  public goto(): Promise<void> {
+    return Promise.resolve()
+  }
+
+  public waitForSelector(): Promise<{ click: () => Promise<void> }> {
+    return Promise.resolve({ click: () => Promise.resolve() })
+  }
+
+  public waitForNavigation(options?: { waitUntil?: string }): Promise<void> {
+    this.waitForNavigationOptions.push(options ?? {})
+    return Promise.resolve()
+  }
+
+  public close(): Promise<void> {
+    this.closed = true
+    return Promise.resolve()
+  }
+}
+
+function createBooklog(page: FakePage): Booklog {
+  const browser = {
+    newPage: () => Promise.resolve(page),
+    cookies: () => Promise.resolve([]),
+  } as unknown as Browser
+
+  return new Booklog({ browser })
+}
+
+test('認証済みプロファイルでは Booklog の自動ログインを実行しない', async () => {
+  const page = new FakePage(true)
+  const booklog = createBooklog(page)
+
+  await booklog.login()
+
+  assert.deepEqual(page.gotoCalls, [BOOKLOG_EXPORT_URL])
+  assert.equal(page.waitForSelectorCalled, false)
+  assert.equal(page.closed, true)
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('Booklog の画面遷移は network idle ではなく DOMContentLoaded を待つ', async () => {
+  const page = new FakePage(true)
+  const booklog = createBooklog(page)
+
+  await booklog.login()
+
+  assert.deepEqual(page.gotoWaitUntil, ['domcontentloaded'])
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('Booklog の一時的な画面遷移失敗を再試行する', async () => {
+  const page = new FakePage(true, false, 1)
+  const booklog = createBooklog(page)
+
+  await booklog.login()
+
+  assert.deepEqual(page.gotoCalls, [BOOKLOG_EXPORT_URL, BOOKLOG_EXPORT_URL])
+  assert.equal(page.closed, true)
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('Booklog の登録後遷移は DOMContentLoaded を待つ', async () => {
+  const page = new FakeMutationPage()
+  const browser = {
+    newPage: () => Promise.resolve(page),
+  } as unknown as Browser
+  const booklog = new Booklog({ browser })
+
+  await booklog.addBookshelfBook('TEST')
+
+  assert.deepEqual(page.waitForNavigationOptions, [
+    { waitUntil: 'domcontentloaded' },
+  ])
+  assert.equal(page.closed, true)
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('未認証なら資格情報を自動送信せず手動ログイン要求を返す', async () => {
+  const page = new FakePage(false)
+  const booklog = createBooklog(page)
+  const previousTimeout = process.env.BOOKLOG_MANUAL_LOGIN_TIMEOUT_MS
+  process.env.BOOKLOG_MANUAL_LOGIN_TIMEOUT_MS = '1'
+
+  try {
+    await assert.rejects(booklog.login(), /Booklog manual login required/)
+  } finally {
+    if (previousTimeout === undefined) {
+      delete process.env.BOOKLOG_MANUAL_LOGIN_TIMEOUT_MS
+    } else {
+      process.env.BOOKLOG_MANUAL_LOGIN_TIMEOUT_MS = previousTimeout
+    }
+  }
+
+  assert.equal(page.waitForSelectorCalled, false)
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('手動ログイン待ちはページ内 JavaScript を評価せず URL 変化を検出する', async () => {
+  const page = new FakePage(false, true)
+  const booklog = createBooklog(page)
+
+  await booklog.login()
+
+  assert.equal(page.waitForFunctionCalled, false)
+  assert.equal(page.closed, true)
+  assert.deepEqual(page.gotoCalls, [BOOKLOG_EXPORT_URL, BOOKLOG_EXPORT_URL])
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('本棚取得時に認証切れなら selector timeout より先に失敗する', async () => {
+  const page = new FakePage(false)
+  const booklog = createBooklog(page)
+
+  await assert.rejects(
+    booklog.getBookshelfBooks(),
+    /Booklog authentication required/
+  )
+
+  assert.equal(page.waitForSelectorCalled, false)
+}).catch((error: unknown) => {
+  throw error
+})

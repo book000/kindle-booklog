@@ -83,7 +83,7 @@ export default class BooklogUpdateBook {
         })
         .then((element) => element?.click()),
       this.page.waitForNavigation({
-        waitUntil: 'networkidle2',
+        waitUntil: 'domcontentloaded',
       }),
     ])
     await this.page.close()

@@ -24,6 +24,7 @@
     "preinstall": "npx only-allow pnpm",
     "start": "tsx ./src/main.ts",
     "dev": "tsx watch ./src/main.ts",
+    "test": "node --import tsx --test src/*.test.ts",
     "lint": "run-z lint:prettier,lint:eslint,lint:tsc",
     "lint:eslint": "eslint . -c eslint.config.mjs",
     "fix": "run-z fix:prettier,fix:eslint",
