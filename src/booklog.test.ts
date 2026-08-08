@@ -63,6 +63,29 @@ class FakePage {
   }
 }
 
+class FakeMutationPage {
+  public waitForNavigationOptions: { waitUntil?: string }[] = []
+  public closed = false
+
+  public goto(): Promise<void> {
+    return Promise.resolve()
+  }
+
+  public waitForSelector(): Promise<{ click: () => Promise<void> }> {
+    return Promise.resolve({ click: () => Promise.resolve() })
+  }
+
+  public waitForNavigation(options?: { waitUntil?: string }): Promise<void> {
+    this.waitForNavigationOptions.push(options ?? {})
+    return Promise.resolve()
+  }
+
+  public close(): Promise<void> {
+    this.closed = true
+    return Promise.resolve()
+  }
+}
+
 function createBooklog(page: FakePage): Booklog {
   const browser = {
     newPage: () => Promise.resolve(page),
@@ -103,6 +126,23 @@ test('Booklog の一時的な画面遷移失敗を再試行する', async () => 
   await booklog.login()
 
   assert.deepEqual(page.gotoCalls, [BOOKLOG_EXPORT_URL, BOOKLOG_EXPORT_URL])
+  assert.equal(page.closed, true)
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('Booklog の登録後遷移は DOMContentLoaded を待つ', async () => {
+  const page = new FakeMutationPage()
+  const browser = {
+    newPage: () => Promise.resolve(page),
+  } as unknown as Browser
+  const booklog = new Booklog({ browser })
+
+  await booklog.addBookshelfBook('TEST')
+
+  assert.deepEqual(page.waitForNavigationOptions, [
+    { waitUntil: 'domcontentloaded' },
+  ])
   assert.equal(page.closed, true)
 }).catch((error: unknown) => {
   throw error

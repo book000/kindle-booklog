@@ -233,7 +233,9 @@ export default class Booklog {
         })
         .then((element) => element?.click())
         .catch(() => null),
-      page.waitForNavigation(),
+      page.waitForNavigation({
+        waitUntil: 'domcontentloaded',
+      }),
     ])
 
     await page.close()
