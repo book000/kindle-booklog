@@ -132,7 +132,10 @@ export default class Amazon {
       'wait top sign-in button',
       { visible: true }
     ).then(async (element) => {
-      await element?.click()
+      await Promise.all([
+        page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
+        element?.click(),
+      ])
     })
 
     console.log("Waiting for 'div#authportal-center-section'")
