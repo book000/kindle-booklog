@@ -92,6 +92,16 @@ export default class Amazon {
     }
   }
 
+  private async performNavigationAction(
+    page: Page,
+    action: () => Promise<unknown>
+  ): Promise<void> {
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
+      action(),
+    ])
+  }
+
   public async login(): Promise<void> {
     console.log('Amazon.login()')
     const page = await this.options.browser.newPage()
@@ -132,10 +142,8 @@ export default class Amazon {
       'wait top sign-in button',
       { visible: true }
     ).then(async (element) => {
-      await Promise.all([
-        page.waitForNavigation({ waitUntil: 'domcontentloaded' }),
-        element?.click(),
-      ])
+      if (!element) return
+      await this.performNavigationAction(page, () => element.click())
     })
 
     console.log("Waiting for 'div#authportal-center-section'")
@@ -173,16 +181,16 @@ export default class Amazon {
     await new Promise((resolve) => setTimeout(resolve, 3000))
 
     console.log("Waiting for 'input#continue'")
-    await page
+    const continueButton = await page
       .waitForSelector(LOGIN_SELECTORS.continueButton, {
         visible: true,
         timeout: 3000,
       })
-      .then(async (element) => {
-        console.log("Found 'input#continue'. Clicking")
-        await element?.click()
-      })
       .catch(() => null)
+    if (continueButton) {
+      console.log("Found 'input#continue'. Clicking")
+      await this.performNavigationAction(page, () => continueButton.click())
+    }
 
     console.log("Waiting for 'div#authportal-center-section'")
     await this.waitForSelectorWithDiagnostics(
@@ -230,7 +238,9 @@ export default class Amazon {
         rememberMe.checked = true
       }
     })
-    await page.click(LOGIN_SELECTORS.signInSubmit)
+    await this.performNavigationAction(page, () =>
+      page.click(LOGIN_SELECTORS.signInSubmit)
+    )
     await new Promise((resolve) => setTimeout(resolve, 3000))
 
     if (
@@ -260,15 +270,15 @@ export default class Amazon {
         }
       })
 
-      await Promise.all([
-        this.waitForSelectorWithDiagnostics(
-          page,
-          LOGIN_SELECTORS.mfaSignInButton,
-          'wait MFA sign-in button',
-          { visible: true }
-        ).then((element) => element?.click()),
-        page.waitForNavigation(),
-      ])
+      const mfaSignInButton = await this.waitForSelectorWithDiagnostics(
+        page,
+        LOGIN_SELECTORS.mfaSignInButton,
+        'wait MFA sign-in button',
+        { visible: true }
+      )
+      if (mfaSignInButton) {
+        await this.performNavigationAction(page, () => mfaSignInButton.click())
+      }
     }
 
     const cookies = await this.options.browser.cookies()
