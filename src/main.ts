@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import { setTimeout as delay } from 'node:timers/promises'
 import puppeteer, { Browser, LaunchOptions } from 'puppeteer-core'
 import Amazon from './amazon'
 import Booklog, { BooklogBook } from './booklog'
@@ -248,6 +249,99 @@ async function updateAllBooks(
   })
 }
 
+const CHROMIUM_SINGLETON_LOCK_FILES = [
+  'SingletonLock',
+  'SingletonCookie',
+  'SingletonSocket',
+]
+
+/**
+ * Chromium 起動失敗時の診断情報をログに出力する
+ *
+ * @param logger ロガー
+ * @param userDataDir Chromium の userDataDir パス
+ */
+function logChromiumLaunchDiagnostics(logger: Logger, userDataDir: string) {
+  const display = process.env.DISPLAY
+  logger.warn(`Chromium launch diagnostics: DISPLAY=${display ?? '(not set)'}`)
+
+  if (display) {
+    // entrypoint.sh と同じ規則で X11 ソケットパスを組み立てる(":99" -> "X99")
+    const displayNumber = display.replace(/^:/, '').split('.', 1)[0]
+    const socketPath = `/tmp/.X11-unix/X${displayNumber}`
+    logger.warn(
+      `Chromium launch diagnostics: X11 socket (${socketPath}) ${
+        fs.existsSync(socketPath) ? 'exists' : 'missing'
+      }`
+    )
+  }
+
+  for (const lockFile of CHROMIUM_SINGLETON_LOCK_FILES) {
+    const lockPath = `${userDataDir}/${lockFile}`
+    logger.warn(
+      `Chromium launch diagnostics: ${lockFile} ${
+        fs.existsSync(lockPath) ? 'exists' : 'missing'
+      }`
+    )
+  }
+}
+
+/**
+ * リトライ前に stale なロックが残ったままにならないよう、Singleton* を削除する
+ *
+ * @param userDataDir Chromium の userDataDir パス
+ */
+function removeChromiumSingletonLocks(userDataDir: string) {
+  for (const lockFile of CHROMIUM_SINGLETON_LOCK_FILES) {
+    const lockPath = `${userDataDir}/${lockFile}`
+    if (fs.existsSync(lockPath)) {
+      fs.rmSync(lockPath, { force: true })
+    }
+  }
+}
+
+/**
+ * 診断ログを出力しつつ Chromium を起動する。起動に失敗した場合、ロックファイルを削除した上で 1 回だけリトライする
+ *
+ * @param options puppeteer の起動オプション
+ * @param logger ロガー
+ * @returns 起動した Browser インスタンス
+ */
+async function launchBrowserWithDiagnostics(
+  options: LaunchOptions,
+  logger: Logger
+): Promise<Browser> {
+  const userDataDir = options.userDataDir ?? ''
+  let firstAttemptError: unknown
+
+  logger.info('Launching Chromium (attempt 1/2)')
+  logChromiumLaunchDiagnostics(logger, userDataDir)
+
+  try {
+    return await puppeteer.launch(options)
+  } catch (error) {
+    firstAttemptError = error
+    logger.error('Failed to launch Chromium (attempt 1/2)', error as Error)
+    // ロック削除前の状態を記録してから自衛的なクリーンアップを行う
+    logChromiumLaunchDiagnostics(logger, userDataDir)
+    removeChromiumSingletonLocks(userDataDir)
+    await delay(3000)
+  }
+
+  logger.info('Launching Chromium (attempt 2/2)')
+  logChromiumLaunchDiagnostics(logger, userDataDir)
+
+  try {
+    return await puppeteer.launch(options)
+  } catch (error) {
+    logger.error('Failed to launch Chromium (attempt 2/2)', error as Error)
+    logChromiumLaunchDiagnostics(logger, userDataDir)
+    throw new Error('Failed to launch Chromium after retry', {
+      cause: { firstAttemptError, secondAttemptError: error },
+    })
+  }
+}
+
 /**
  * メイン処理
  */
@@ -341,12 +435,16 @@ async function main() {
     ? Number.parseInt(process.env.WINDOW_HEIGHT)
     : 1000
 
+  const userDataDir = process.env.BROWSER_USER_DATA_DIR ?? 'data/userdata'
+
   // puppeteerの設定
   const puppeteerOptions: LaunchOptions = {
     // DISPLAYがないときはheadlessモードにする
     headless: !process.env.DISPLAY,
     executablePath: process.env.CHROMIUM_PATH ?? '/usr/bin/chromium-browser',
-    userDataDir: process.env.BROWSER_USER_DATA_DIR ?? 'data/userdata',
+    userDataDir,
+    // 起動失敗時の診断のため、Chromium 自身の stdout/stderr をそのまま出力する
+    dumpio: true,
     defaultViewport: {
       width,
       height,
@@ -371,7 +469,35 @@ async function main() {
   // discordの設定
   const discord = new Discord(config.discord)
 
-  const browser = await puppeteer.launch(puppeteerOptions)
+  let browser: Awaited<ReturnType<typeof launchBrowserWithDiagnostics>>
+  try {
+    browser = await launchBrowserWithDiagnostics(puppeteerOptions, logger)
+  } catch (error) {
+    logger.error('Failed to launch Chromium', error as Error)
+    // Discord API の embed description は 4096 文字までのため切り詰める
+    const description = (
+      error instanceof Error
+        ? error.message + '\n\n' + (error.stack ?? '')
+        : String(error)
+    ).slice(0, 4096)
+    try {
+      await discord.sendMessage({
+        embeds: [
+          {
+            title: 'Chromiumの起動に失敗しました',
+            description,
+            color: 0xff_00_00, // red
+            footer: {
+              text: 'Powered by kindle-booklog',
+            },
+          },
+        ],
+      })
+    } catch (notifyError) {
+      logger.error('Failed to send Discord notification', notifyError as Error)
+    }
+    return
+  }
 
   try {
     const amazon = new Amazon(
