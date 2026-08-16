@@ -249,9 +249,6 @@ async function updateAllBooks(
   })
 }
 
-/**
- * Chromium のプロファイルロックファイル名一覧
- */
 const CHROMIUM_SINGLETON_LOCK_FILES = [
   'SingletonLock',
   'SingletonCookie',
@@ -259,7 +256,7 @@ const CHROMIUM_SINGLETON_LOCK_FILES = [
 ]
 
 /**
- * Chromium 起動失敗時の診断情報(DISPLAY/Xvfb ソケット・userDataDir のロックファイル状態)をログに出力する
+ * Chromium 起動失敗時の診断情報をログに出力する
  *
  * @param logger ロガー
  * @param userDataDir Chromium の userDataDir パス
@@ -290,7 +287,7 @@ function logChromiumLaunchDiagnostics(logger: Logger, userDataDir: string) {
 }
 
 /**
- * userDataDir 配下の Chromium のロックファイル(Singleton*)を削除する
+ * リトライ前に stale なロックが残ったままにならないよう、Singleton* を削除する
  *
  * @param userDataDir Chromium の userDataDir パス
  */
@@ -315,6 +312,7 @@ async function launchBrowserWithDiagnostics(
   logger: Logger
 ): Promise<Browser> {
   const userDataDir = options.userDataDir ?? ''
+  let firstAttemptError: unknown
 
   logger.info('Launching Chromium (attempt 1/2)')
   logChromiumLaunchDiagnostics(logger, userDataDir)
@@ -322,6 +320,7 @@ async function launchBrowserWithDiagnostics(
   try {
     return await puppeteer.launch(options)
   } catch (error) {
+    firstAttemptError = error
     logger.error('Failed to launch Chromium (attempt 1/2)', error as Error)
     // ロック削除前の状態を記録してから自衛的なクリーンアップを行う
     logChromiumLaunchDiagnostics(logger, userDataDir)
@@ -337,7 +336,9 @@ async function launchBrowserWithDiagnostics(
   } catch (error) {
     logger.error('Failed to launch Chromium (attempt 2/2)', error as Error)
     logChromiumLaunchDiagnostics(logger, userDataDir)
-    throw error
+    throw new Error('Failed to launch Chromium after retry', {
+      cause: { firstAttemptError, secondAttemptError: error },
+    })
   }
 }
 
@@ -365,7 +366,7 @@ async function main() {
     headless: !process.env.DISPLAY,
     executablePath: process.env.CHROMIUM_PATH ?? '/usr/bin/chromium-browser',
     userDataDir,
-    // 起動失敗時の診断のため、Chromium自身のstdout/stderrをそのまま出力する
+    // 起動失敗時の診断のため、Chromium 自身の stdout/stderr をそのまま出力する
     dumpio: true,
     defaultViewport: {
       width,
@@ -396,21 +397,28 @@ async function main() {
     browser = await launchBrowserWithDiagnostics(puppeteerOptions, logger)
   } catch (error) {
     logger.error('Failed to launch Chromium', error as Error)
-    await discord.sendMessage({
-      embeds: [
-        {
-          title: 'Chromiumの起動に失敗しました',
-          description:
-            error instanceof Error
-              ? error.message + '\n\n' + (error.stack ?? '')
-              : String(error),
-          color: 0xff_00_00, // red
-          footer: {
-            text: 'Powered by kindle-booklog',
+    // Discord API の embed description は 4096 文字までのため切り詰める
+    const description = (
+      error instanceof Error
+        ? error.message + '\n\n' + (error.stack ?? '')
+        : String(error)
+    ).slice(0, 4096)
+    try {
+      await discord.sendMessage({
+        embeds: [
+          {
+            title: 'Chromiumの起動に失敗しました',
+            description,
+            color: 0xff_00_00, // red
+            footer: {
+              text: 'Powered by kindle-booklog',
+            },
           },
-        },
-      ],
-    })
+        ],
+      })
+    } catch (notifyError) {
+      logger.error('Failed to send Discord notification', notifyError as Error)
+    }
     return
   }
 
