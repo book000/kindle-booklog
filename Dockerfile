@@ -14,7 +14,7 @@ ENV CHROME_BIN=/usr/bin/chromium-browser \
     PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
 
 # hadolint ignore=DL3002
-USER root
+USER 0
 
 # hadolint ignore=DL3018,DL3016
 RUN apk upgrade --no-cache --available && \
