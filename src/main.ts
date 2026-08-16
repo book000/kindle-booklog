@@ -261,22 +261,22 @@ const DIAGNOSTICS_TIMEOUT_MS = 5000
  * @returns 元の Promise の結果
  */
 function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<never>((_resolve, reject) => {
-      setTimeout(() => {
-        reject(new Error(`${label} timed out after ${DIAGNOSTICS_TIMEOUT_MS}ms`))
-      }, DIAGNOSTICS_TIMEOUT_MS)
-    }),
-  ])
+  let timer: NodeJS.Timeout
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${DIAGNOSTICS_TIMEOUT_MS}ms`))
+    }, DIAGNOSTICS_TIMEOUT_MS)
+  })
+  return Promise.race([promise, timeout]).finally(() => {
+    clearTimeout(timer)
+  })
 }
 
 /**
  * エラー発生時の診断情報（スクリーンショット・HTML）を各 page ごとに保存する
  *
- * screenshot/content の取得失敗が一次例外を上書きしないよう、page ごと・
- * 処理ごとに try/catch と短いタイムアウトで隔離し、診断処理自体の失敗は
- * secondary な warn ログとしてのみ記録する
+ * screenshot/content の取得失敗を page・処理ごとに隔離し、一次例外を上書きしない。
+ * 診断処理自体の失敗は secondary な warn ログとしてのみ記録する。
  *
  * @param browser Puppeteer ブラウザインスタンス
  * @param logger ロガー
