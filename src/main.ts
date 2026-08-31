@@ -256,20 +256,20 @@ const CHROMIUM_SINGLETON_LOCK_FILES = [
 ]
 
 /**
- * Chromium 起動失敗時の診断情報をログに出力する
+ * Chromium 起動時の診断情報をログに出力する
  *
  * @param logger ロガー
  * @param userDataDir Chromium の userDataDir パス
  */
 function logChromiumLaunchDiagnostics(logger: Logger, userDataDir: string) {
   const display = process.env.DISPLAY
-  logger.warn(`Chromium launch diagnostics: DISPLAY=${display ?? '(not set)'}`)
+  logger.info(`Chromium launch diagnostics: DISPLAY=${display ?? '(not set)'}`)
 
   if (display) {
     // entrypoint.sh と同じ規則で X11 ソケットパスを組み立てる(":99" -> "X99")
     const displayNumber = display.replace(/^:/, '').split('.', 1)[0]
     const socketPath = `/tmp/.X11-unix/X${displayNumber}`
-    logger.warn(
+    logger.info(
       `Chromium launch diagnostics: X11 socket (${socketPath}) ${
         fs.existsSync(socketPath) ? 'exists' : 'missing'
       }`
@@ -278,7 +278,7 @@ function logChromiumLaunchDiagnostics(logger: Logger, userDataDir: string) {
 
   for (const lockFile of CHROMIUM_SINGLETON_LOCK_FILES) {
     const lockPath = `${userDataDir}/${lockFile}`
-    logger.warn(
+    logger.info(
       `Chromium launch diagnostics: ${lockFile} ${
         fs.existsSync(lockPath) ? 'exists' : 'missing'
       }`
