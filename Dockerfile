@@ -28,6 +28,7 @@ RUN apk upgrade --no-cache --available && \
     tini \
     tzdata \
     x11vnc \
+    xdpyinfo \
     xvfb && \
   cp /usr/share/zoneinfo/Asia/Tokyo /etc/localtime && \
   echo "Asia/Tokyo" > /etc/timezone && \
