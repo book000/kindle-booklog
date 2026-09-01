@@ -195,3 +195,82 @@ test('本棚取得時に認証切れなら selector timeout より先に失敗�
 }).catch((error: unknown) => {
   throw error
 })
+
+class FakeExportPage {
+  public closed = false
+
+  public goto(): Promise<void> {
+    return Promise.resolve()
+  }
+
+  public url(): string {
+    return BOOKLOG_EXPORT_URL
+  }
+
+  public waitForSelector(): Promise<unknown> {
+    return Promise.resolve({})
+  }
+
+  public $eval(): Promise<string> {
+    return Promise.resolve('https://booklog.jp/export/xxxx.csv')
+  }
+
+  public close(): Promise<void> {
+    this.closed = true
+    return Promise.resolve()
+  }
+}
+
+function withFakeFetch<T>(
+  impl: () => Promise<Response>,
+  run: () => Promise<T>
+): Promise<T> {
+  const originalFetch = fetch
+  globalThis.fetch = impl
+  return run().finally(() => {
+    globalThis.fetch = originalFetch
+  })
+}
+
+test('CSV エクスポート取得の一時的な fetch 失敗を再試行する', async () => {
+  const page = new FakeExportPage()
+  const booklog = createBooklog(page as unknown as FakePage)
+
+  let calls = 0
+  const books = await withFakeFetch(
+    () => {
+      calls += 1
+      if (calls === 1) {
+        return Promise.reject(new TypeError('fetch failed'))
+      }
+      return Promise.resolve(new Response(''))
+    },
+    () => booklog.getBookshelfBooks()
+  )
+
+  assert.equal(calls, 2)
+  assert.deepEqual(books, [])
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('CSV エクスポート取得が再試行上限に達したら最後のエラーを投げる', async () => {
+  const page = new FakeExportPage()
+  const booklog = createBooklog(page as unknown as FakePage)
+
+  let calls = 0
+  await assert.rejects(
+    withFakeFetch(
+      () => {
+        calls += 1
+        return Promise.reject(new TypeError('fetch failed'))
+      },
+      () => booklog.getBookshelfBooks()
+    ),
+    /fetch failed/
+  )
+
+  assert.equal(calls, 3)
+}).catch((error: unknown) => {
+  throw error
+})
