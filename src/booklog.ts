@@ -8,8 +8,8 @@ import BooklogBookUpdater from './booklog-update-book'
 const BOOKLOG_LOGIN_URL = 'https://booklog.jp/login'
 const BOOKLOG_EXPORT_URL = 'https://booklog.jp/export'
 const DEFAULT_MANUAL_LOGIN_TIMEOUT_MS = 300_000
-const BOOKLOG_NAVIGATION_MAX_ATTEMPTS = 3
-const BOOKLOG_NAVIGATION_RETRY_DELAY_MS = 500
+const BOOKLOG_RETRY_MAX_ATTEMPTS = 3
+const BOOKLOG_RETRY_DELAY_MS = 500
 
 interface BooklogOptions {
   browser: Browser
@@ -82,6 +82,26 @@ export default class Booklog {
   ) {}
 
   /**
+   * 一時的に失敗しうる処理を再試行する。
+   *
+   * @param operation 再試行対象の処理
+   */
+  private async withRetry<T>(operation: () => Promise<T>): Promise<T> {
+    for (let attempt = 1; attempt <= BOOKLOG_RETRY_MAX_ATTEMPTS; attempt++) {
+      try {
+        return await operation()
+      } catch (error) {
+        if (attempt === BOOKLOG_RETRY_MAX_ATTEMPTS) {
+          throw error
+        }
+        await delay(BOOKLOG_RETRY_DELAY_MS * attempt)
+      }
+    }
+    // ループは必ず return か throw で終了するため到達しない
+    throw new Error('unreachable')
+  }
+
+  /**
    * Booklog のページへ遷移する。外部リソースの通信完了は待たず、
    * 一時的な遷移失敗は再試行する。
    *
@@ -89,23 +109,11 @@ export default class Booklog {
    * @param url 遷移先URL
    */
   private async navigate(page: Page, url: string): Promise<void> {
-    for (
-      let attempt = 1;
-      attempt <= BOOKLOG_NAVIGATION_MAX_ATTEMPTS;
-      attempt++
-    ) {
-      try {
-        await page.goto(url, {
-          waitUntil: 'domcontentloaded',
-        })
-        return
-      } catch (error) {
-        if (attempt === BOOKLOG_NAVIGATION_MAX_ATTEMPTS) {
-          throw error
-        }
-        await delay(BOOKLOG_NAVIGATION_RETRY_DELAY_MS * attempt)
-      }
-    }
+    await this.withRetry(() =>
+      page.goto(url, {
+        waitUntil: 'domcontentloaded',
+      })
+    )
   }
 
   /**
@@ -177,7 +185,7 @@ export default class Booklog {
       throw new Error('export url not found')
     }
     await page.close()
-    const response = await fetch(url)
+    const response = await this.withRetry(() => fetch(url))
     if (!response.ok) {
       throw new Error(
         `Failed to fetch bookshelf export: ${response.status} ${response.statusText}`
