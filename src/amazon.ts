@@ -347,8 +347,8 @@ export default class Amazon {
         extract.on('entry', (header, stream, next) => {
           if (header.name === 'metadata.json') {
             let data = ''
-            stream.on('data', (chunk: { toString: () => string }) => {
-              data += chunk.toString()
+            stream.on('data', (chunk: unknown) => {
+              data += (chunk as Buffer).toString()
             })
             stream.on('end', () => {
               resolve(JSON.parse(data))
