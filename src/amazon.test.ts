@@ -84,49 +84,45 @@ class FakeAmazonLoginPage {
     }
 
     if (selector === 'input#continue') {
-      if (this.options.hasContinue === false) {
-        return Promise.reject(new Error('continue button not shown'))
-      }
-      return Promise.resolve({
-        click: () => {
-          this.navigate(
-            'continue',
-            'https://www.amazon.co.jp/ap/signin',
-            'password'
-          )
-          return Promise.resolve()
-        },
-      })
+      return this.options.hasContinue === false
+        ? Promise.reject(new Error('continue button not shown'))
+        : Promise.resolve({
+            click: () => {
+              this.navigate(
+                'continue',
+                'https://www.amazon.co.jp/ap/signin',
+                'password'
+              )
+              return Promise.resolve()
+            },
+          })
     }
 
     if (selector === 'input#ap_password') {
-      if (this.stage !== 'password') {
-        return Promise.reject(new Error(`password requested at ${this.stage}`))
-      }
-      return Promise.resolve({
-        click: () => Promise.resolve(),
-        type: () => Promise.resolve(),
-      })
+      return this.stage === 'password'
+        ? Promise.resolve({
+            click: () => Promise.resolve(),
+            type: () => Promise.resolve(),
+          })
+        : Promise.reject(new Error(`password requested at ${this.stage}`))
     }
 
     if (selector === 'input#auth-mfa-otpcode') {
       return Promise.resolve({ type: () => Promise.resolve() })
     }
 
-    if (selector === 'input#auth-signin-button') {
-      return Promise.resolve({
-        click: () => {
-          this.navigate(
-            'MFA submit',
-            'https://read.amazon.co.jp/kindle-library',
-            'library'
-          )
-          return Promise.resolve()
-        },
-      })
-    }
-
-    return Promise.reject(new Error(`unexpected selector: ${selector}`))
+    return selector === 'input#auth-signin-button'
+      ? Promise.resolve({
+          click: () => {
+            this.navigate(
+              'MFA submit',
+              'https://read.amazon.co.jp/kindle-library',
+              'library'
+            )
+            return Promise.resolve()
+          },
+        })
+      : Promise.reject(new Error(`unexpected selector: ${selector}`))
   }
 
   public click(selector: string): Promise<void> {

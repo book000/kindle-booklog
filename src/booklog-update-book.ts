@@ -213,17 +213,18 @@ export default class BooklogUpdateBook {
       )
 
     // 「ネタバレの内容を含む」のチェックボックスを更新する
-    if (isSpoiler !== undefined) {
-      const netabareInputElement = await this.page.waitForSelector(
-        'div.edit-review-area div.netabare input.edit-netabare',
-        {
-          visible: true,
-        }
-      )
-      const isChecked = await netabareInputElement?.evaluate((el) => el.checked)
-      if (isChecked !== isSpoiler) {
-        await netabareInputElement?.click()
+    if (isSpoiler === undefined) {
+      return
+    }
+    const netabareInputElement = await this.page.waitForSelector(
+      'div.edit-review-area div.netabare input.edit-netabare',
+      {
+        visible: true,
       }
+    )
+    const isChecked = await netabareInputElement?.evaluate((el) => el.checked)
+    if (isChecked !== isSpoiler) {
+      await netabareInputElement?.click()
     }
   }
 
