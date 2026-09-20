@@ -240,10 +240,9 @@ test('CSV エクスポート取得の一時的な fetch 失敗を再試行する
   const books = await withFakeFetch(
     () => {
       calls += 1
-      if (calls === 1) {
-        return Promise.reject(new TypeError('fetch failed'))
-      }
-      return Promise.resolve(new Response(''))
+      return calls === 1
+        ? Promise.reject(new TypeError('fetch failed'))
+        : Promise.resolve(new Response(''))
     },
     () => booklog.getBookshelfBooks()
   )
