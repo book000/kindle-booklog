@@ -167,8 +167,8 @@ importers:
   .:
     devDependencies:
       '@book000/eslint-config':
-        specifier: 1.16.75
-        version: 1.16.75(eslint@10.11.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3)
+        specifier: 1.16.76
+        version: 1.16.76(eslint@10.11.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3)
       '@book000/node-utils':
         specifier: 1.25.128
         version: 1.25.128
@@ -290,8 +290,8 @@ packages:
     resolution: {integrity: sha512-Vj1jF3cPfxg7OAfoI7QnVKLoILlm2JF9pnVHrX8qx7AHMiYWT+NDAA7jChlNgRS4WTLc/fD1lXLmPixluj+3Gg==}
     engines: {node: '>=6.9.0'}
 
-  '@book000/eslint-config@1.16.75':
-    resolution: {integrity: sha512-JgEgCRFxrpQNaeEj9rxiN0NK7sP+xXfIIYEC2yAZy158/Yqi+LcY1/z/O23xThURsKs42h54+qtB9Ej76zIUng==}
+  '@book000/eslint-config@1.16.76':
+    resolution: {integrity: sha512-ngwhT6NsmoWLq+AMoqFIJm5N6oryDYisdvPKPjOB1d6jsrKQR8OL1jL/qVSFkGlsDNohOuxc3Oxj9m1iOpG4ww==}
     peerDependencies:
       eslint: 10.11.0
 
@@ -776,9 +776,6 @@ packages:
 
   '@types/json5@0.0.29':
     resolution: {integrity: sha512-dRLjCWHYg4oaA77cxO64oO+7JwCwnIzkZPdrrC71jQmQtlhM556pwKo5bUzqvZndkVbeFLIIi+9TC40JNF5hNQ==}
-
-  '@types/node@24.13.6':
-    resolution: {integrity: sha512-SGrw/h3KPFshy3OE6ZL53LMBG5vGQQ8/gIpiqz/kRZhPJ7HgwCEs8LBuNtWLa8dvGZVpSF7+Bf+c11HUrCb/yg==}
 
   '@types/node@24.19.0':
     resolution: {integrity: sha512-zY+5tKxXdhGh1PYI0ac+7juvEu4OI6vWtVVoj5i2m42jxAY1U+zHGt6QCyOFwykdP62sM3MJ9stoYYUw5aCWew==}
@@ -2359,9 +2356,6 @@ packages:
     resolution: {integrity: sha512-nWJ91DjeOkej/TA8pXQ3myruKpKEYgqvpw9lz4OPHj/NWFNluYrjbz9j01CJ8yKQd2g4jFoOkINCTW2I5LEEyw==}
     engines: {node: '>= 0.4'}
 
-  undici-types@7.18.2:
-    resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
-
   undici-types@7.24.6:
     resolution: {integrity: sha512-WRNW+sJgj5OBN4/0JpHFqtqzhpbnV0GuB+OozA9gCL7a993SmU+1JBZCzLNxYsbMfIeDL+lTsphD5jN5N+n0zg==}
 
@@ -2579,7 +2573,7 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
-  '@book000/eslint-config@1.16.75(eslint@10.11.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3)':
+  '@book000/eslint-config@1.16.76(eslint@10.11.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3)':
     dependencies:
       '@typescript-eslint/parser': 8.70.1(eslint@10.11.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3)
       eslint: 10.11.0(supports-color@8.1.1)
@@ -2968,11 +2962,6 @@ snapshots:
 
   '@types/json5@0.0.29': {}
 
-  '@types/node@24.13.6':
-    dependencies:
-      undici-types: 7.18.2
-    optional: true
-
   '@types/node@24.19.0':
     dependencies:
       undici-types: 7.24.6
@@ -2985,7 +2974,7 @@ snapshots:
 
   '@types/yauzl@2.10.3':
     dependencies:
-      '@types/node': 24.13.6
+      '@types/node': 24.19.0
     optional: true
 
   '@typescript-eslint/eslint-plugin@8.70.1(@typescript-eslint/parser@8.70.1(eslint@10.11.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3))(eslint@10.11.0(supports-color@8.1.1))(supports-color@8.1.1)(typescript@6.0.3)':
@@ -4918,9 +4907,6 @@ snapshots:
       has-bigints: 1.1.0
       has-symbols: 1.1.0
       which-boxed-primitive: 1.1.1
-
-  undici-types@7.18.2:
-    optional: true
 
   undici-types@7.24.6: {}
 
