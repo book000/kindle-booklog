@@ -34,7 +34,7 @@
     "@book000/eslint-config": "1.16.79",
     "@book000/node-utils": "1.25.133",
     "@types/node": "24.19.0",
-    "@types/tar-stream": "3.1.4",
+    "@types/tar-stream": "3.1.5",
     "csv-parse": "7.0.3",
     "eslint": "10.11.0",
     "eslint-config-standard": "17.1.0",
