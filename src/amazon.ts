@@ -157,6 +157,7 @@ export default class Amazon {
         "Found 'div#authportal-center-section'. Setting margin-top to 100px"
       )
       await page.evaluate((selector) => {
+        // eslint-disable-next-line unicorn/isolated-functions -- runs in browser context, document is available
         const centerSection = document.querySelector<HTMLDivElement>(selector)
         if (centerSection) {
           centerSection.style.marginTop = '100px'
@@ -203,6 +204,7 @@ export default class Amazon {
         "Found 'div#authportal-center-section'. Setting margin-top to 100px"
       )
       await page.evaluate((selector) => {
+        // eslint-disable-next-line unicorn/isolated-functions -- runs in browser context, document is available
         const centerSection = document.querySelector<HTMLDivElement>(selector)
         if (centerSection) {
           centerSection.style.marginTop = '100px'
@@ -231,6 +233,7 @@ export default class Amazon {
 
     console.log("Waiting for 'input#signInSubmit'")
     await page.evaluate(() => {
+      // eslint-disable-next-line unicorn/isolated-functions -- runs in browser context, document is available
       const rememberMe = document.querySelector<HTMLInputElement>(
         'input[name="rememberMe"]'
       )
@@ -262,6 +265,7 @@ export default class Amazon {
         { visible: true }
       ).then((element) => element?.type(otpCode))
       await page.evaluate(() => {
+        // eslint-disable-next-line unicorn/isolated-functions -- runs in browser context, document is available
         const rememberMe = document.querySelector<HTMLInputElement>(
           'input#auth-mfa-remember-device'
         )
