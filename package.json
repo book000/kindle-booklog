@@ -44,7 +44,7 @@
     "iconv-lite": "0.7.3",
     "otplib": "13.5.0",
     "prettier": "3.9.10",
-    "puppeteer-core": "npm:rebrowser-puppeteer-core@24.8.1",
+    "puppeteer-core": "npm:rebrowser-puppeteer-core@25.14.0",
     "run-z": "2.1.0",
     "tar-stream": "3.2.2",
     "tsx": "4.23.15",
