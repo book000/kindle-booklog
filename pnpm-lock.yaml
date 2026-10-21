@@ -206,8 +206,8 @@ importers:
         specifier: 3.9.10
         version: 3.9.10
       puppeteer-core:
-        specifier: npm:rebrowser-puppeteer-core@25.14.0
-        version: rebrowser-puppeteer-core@25.14.0(yauzl@2.10.0)
+        specifier: npm:rebrowser-puppeteer-core@25.14.100
+        version: rebrowser-puppeteer-core@25.14.100(yauzl@2.10.0)
       run-z:
         specifier: 2.1.0
         version: 2.1.0
@@ -1912,8 +1912,8 @@ packages:
     resolution: {integrity: sha512-9u/sniCrY3D5WdsERHzHE4G2YCXqoG5FTHUiCC4SIbr6XcLZBY05ya9EKjYek9O5xOAwjGq+1JdGBAS7Q9ScoA==}
     engines: {node: '>= 6'}
 
-  rebrowser-puppeteer-core@25.14.0:
-    resolution: {integrity: sha512-K7yWRLLeWD5oe23Msh060cTU4zAnDWf2zOZbALLoVPXTy3uKGH7i262hN8WlJJVRUvQd7vKpm4uVYUrJiItGjw==}
+  rebrowser-puppeteer-core@25.14.100:
+    resolution: {integrity: sha512-XIojJ7QuAOQ3eRA4SsH02qk6b5nzdENcR211xi+pr+wYE0c4JVU3mz/a2V16PfTOynRRU3cqmpTeCFdx5CmyGA==}
     engines: {node: '>=22.12.0'}
 
   reflect.getprototypeof@1.0.10:
@@ -4094,7 +4094,7 @@ snapshots:
       string_decoder: 1.3.0
       util-deprecate: 1.0.2
 
-  rebrowser-puppeteer-core@25.14.0(yauzl@2.10.0):
+  rebrowser-puppeteer-core@25.14.100(yauzl@2.10.0):
     dependencies:
       '@puppeteer/browsers': 3.2.5(yauzl@2.10.0)
       chromium-bidi: 157.0.8090-0(devtools-protocol@0.0.1696802)
