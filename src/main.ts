@@ -5,6 +5,7 @@ import Amazon from './amazon'
 import Booklog, { BooklogBook } from './booklog'
 import { Logger, Discord, DiscordOptions } from '@book000/node-utils'
 import { KindleBook } from './models/kindle-search-response'
+import { pruneDebugDirectory, saveDebugInfo } from './debug-info'
 
 interface Config {
   amazon: {
@@ -345,85 +346,9 @@ async function launchBrowserWithDiagnostics(
 /**
  * メイン処理
  */
-const DIAGNOSTICS_TIMEOUT_MS = 5000
-
-/**
- * Promise に短いタイムアウトを設定する
- *
- * @param promise 対象の Promise
- * @param label タイムアウト時のエラーメッセージに含めるラベル
- * @returns 元の Promise の結果
- */
-function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
-  let timer: NodeJS.Timeout
-  const timeout = new Promise<never>((_resolve, reject) => {
-    timer = setTimeout(() => {
-      reject(new Error(`${label} timed out after ${DIAGNOSTICS_TIMEOUT_MS}ms`))
-    }, DIAGNOSTICS_TIMEOUT_MS)
-  })
-  return Promise.race([promise, timeout]).finally(() => {
-    clearTimeout(timer)
-  })
-}
-
-/**
- * エラー発生時の診断情報（スクリーンショット・HTML）を各 page ごとに保存する
- *
- * screenshot/content の取得失敗を page・処理ごとに隔離し、一次例外を上書きしない。
- * 診断処理自体の失敗は secondary な warn ログとしてのみ記録する。
- *
- * @param browser Puppeteer ブラウザインスタンス
- * @param logger ロガー
- */
-async function saveDebugInfo(browser: Browser, logger: Logger) {
-  const debugDirectory = process.env.DEBUG_DIRECTORY ?? 'debug'
-  try {
-    if (!fs.existsSync(debugDirectory)) {
-      fs.mkdirSync(debugDirectory)
-    }
-
-    const pages = await browser.pages()
-    for (const [index, page] of pages.entries()) {
-      const timestamp = new Date().toISOString().replaceAll(':', '-')
-
-      try {
-        await withTimeout(
-          page.screenshot({
-            path: `${debugDirectory}/error-${timestamp}-${index}.png`,
-            fullPage: true,
-          }),
-          `page[${index}] screenshot`
-        )
-      } catch (error) {
-        logger.warn(
-          `Failed to save debug screenshot for page[${index}]`,
-          error as Error
-        )
-      }
-
-      try {
-        const content = await withTimeout(
-          page.content(),
-          `page[${index}] content`
-        )
-        fs.writeFileSync(
-          `${debugDirectory}/error-${timestamp}-${index}.html`,
-          content
-        )
-      } catch (error) {
-        logger.warn(
-          `Failed to save debug HTML for page[${index}]`,
-          error as Error
-        )
-      }
-    }
-  } catch (error) {
-    logger.warn('Failed to save debug info', error as Error)
-  }
-}
-
 async function main() {
   const logger = Logger.configure('main')
+  pruneDebugDirectory(logger)
 
   const configPath = process.env.CONFIG_PATH ?? 'data/config.json'
   const config: Config = JSON.parse(fs.readFileSync(configPath, 'utf8'))
@@ -459,6 +384,9 @@ async function main() {
       '--disable-gpu',
       `--window-size=${width},${height}`,
     ],
+    // 起動・CDP 通信のタイムアウトを延長（config.puppeteer で上書き可能）
+    timeout: 60_000,
+    protocolTimeout: 120_000,
     ...config.puppeteer,
   }
 

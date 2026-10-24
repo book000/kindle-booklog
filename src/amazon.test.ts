@@ -226,3 +226,44 @@ test('Amazon の MFA 送信まで全 navigation を同期する', async () => {
 }).catch((error: unknown) => {
   throw error
 })
+
+test('getBookPercentageRead は goto 失敗時に waitForResponse を未処理 reject にしない', async () => {
+  const page = {
+    goto: () => Promise.reject(new Error('goto failed')),
+    // goto 失敗後に reject する（catch がなければ未処理の reject になる）
+    waitForResponse: () =>
+      new Promise((_resolve, reject) => {
+        setTimeout(() => {
+          reject(new Error('response timeout'))
+        }, 5)
+      }),
+  }
+  const browser = { newPage: () => Promise.resolve(page) } as unknown as Browser
+  const amazon = new Amazon({
+    browser,
+    username: 'test@example.com',
+    password: 'password',
+    cookiePath: '/tmp/kindle-booklog-amazon-test-cookie.json',
+    isIgnoreCookie: true,
+  })
+
+  const unhandled: unknown[] = []
+  const onUnhandled = (reason: unknown) => {
+    unhandled.push(reason)
+  }
+  process.on('unhandledRejection', onUnhandled)
+  try {
+    await assert.rejects(
+      amazon.getBookPercentageRead({
+        webReaderUrl: 'https://example.com',
+      } as never),
+      /goto failed/
+    )
+    await new Promise((resolve) => setTimeout(resolve, 30))
+    assert.deepEqual(unhandled, [])
+  } finally {
+    process.off('unhandledRejection', onUnhandled)
+  }
+}).catch((error: unknown) => {
+  throw error
+})
