@@ -330,6 +330,8 @@ export default class Amazon {
         .url()
         .startsWith('https://read.amazon.co.jp/renderer/render')
     })
+    // goto 失敗時は promise を await しないため、未処理の reject にならないよう握りつぶす（この場合は goto のエラーが伝播する）。goto 成功時は後続の await で再 throw される
+    promise.catch(() => undefined)
     await page.goto(url, {
       waitUntil: 'networkidle2',
     })
