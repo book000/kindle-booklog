@@ -7,6 +7,7 @@ import type { Browser } from 'puppeteer-core'
 import type { Logger } from '@book000/node-utils'
 import { pruneDebugDirectory, saveDebugInfo } from './debug-info'
 
+/** テスト用ロガーが記録するログエントリ */
 interface LogEntry {
   level: 'debug' | 'warn'
   message: string
@@ -137,8 +138,10 @@ test('pruneDebugDirectory は 7 日より古いファイルのみ削除する', 
     const now = Date.now()
     const day = 24 * 60 * 60 * 1000
     for (const [name, ageDays] of [
-      ['old.png', 8],
-      ['new.png', 6],
+      ['error-old.png', 8],
+      ['error-new.png', 6],
+      // saveDebugInfo 由来ではないファイルは古くても削除しない
+      ['unrelated.json', 30],
     ] as const) {
       const filePath = path.join(directory, name)
       fs.writeFileSync(filePath, 'x')
@@ -149,7 +152,10 @@ test('pruneDebugDirectory は 7 日より古いファイルのみ削除する', 
 
     pruneDebugDirectory(logger, now)
 
-    assert.deepEqual(fs.readdirSync(directory), ['new.png'])
+    assert.deepEqual(
+      fs.readdirSync(directory).toSorted((a, b) => a.localeCompare(b)),
+      ['error-new.png', 'unrelated.json']
+    )
     return Promise.resolve()
   })
 }).catch((error: unknown) => {

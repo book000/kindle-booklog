@@ -384,9 +384,9 @@ async function main() {
       '--disable-gpu',
       `--window-size=${width},${height}`,
     ],
-    // 起動・CDP 通信のタイムアウトを延長（config.puppeteer で上書き可能）
+    // 起動・CDP 通信のタイムアウトを延長（既定は 30 秒 / 180 秒。config.puppeteer で上書き可能）
     timeout: 60_000,
-    protocolTimeout: 120_000,
+    protocolTimeout: 300_000,
     ...config.puppeteer,
   }
 

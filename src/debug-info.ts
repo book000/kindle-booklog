@@ -5,6 +5,9 @@ import type { Logger } from '@book000/node-utils'
 
 const DIAGNOSTICS_TIMEOUT_MS = 5000
 
+/** saveDebugInfo が出力するファイル名のパターン（pruneDebugDirectory の削除対象） */
+const DEBUG_FILE_PATTERN = /^error-.*\.(png|html)$/
+
 /** デバッグ情報の保持期間（ミリ秒） */
 const DEBUG_RETENTION_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -37,7 +40,9 @@ function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
 }
 
 /**
- * デバッグディレクトリ内の古いファイル（更新から 7 日超）を削除する
+ * デバッグディレクトリ内の保持期間を過ぎた古いファイルを削除する
+ *
+ * saveDebugInfo が出力したファイル（error-*.png / error-*.html）のみ対象とする
  *
  * ファイル単位で失敗を隔離し、失敗は debug ログのみ記録する。
  *
@@ -49,11 +54,15 @@ export function pruneDebugDirectory(logger: Logger, now = Date.now()) {
   let names: string[]
   try {
     names = fs.readdirSync(debugDirectory)
-  } catch {
+  } catch (error) {
     // ディレクトリが無い場合は何もしない
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      logger.debug(`Failed to read debug directory: ${String(error)}`)
+    }
     return
   }
   for (const name of names) {
+    if (!DEBUG_FILE_PATTERN.test(name)) continue
     const filePath = path.join(debugDirectory, name)
     try {
       const stat = fs.statSync(filePath)
