@@ -295,9 +295,15 @@ function logChromiumLaunchDiagnostics(logger: Logger, userDataDir: string) {
  *
  * @param discord Discordクラスインスタンス
  * @param logger ロガー
+ * @param error ログイン要求エラー
  */
-async function notifyLoginRequiredOnce(discord: Discord, logger: Logger) {
-  logger.info('Booklog login required; waiting for manual login via VNC')
+async function notifyLoginRequiredOnce(
+  discord: Discord,
+  logger: Logger,
+  error: BooklogLoginRequiredError
+) {
+  const cause = error.cause instanceof Error ? `: ${error.cause.message}` : ''
+  logger.info(`Booklog login required (${error.message}${cause})`)
   const state = readLoginState()
   if (state?.notified) {
     return
@@ -314,10 +320,14 @@ async function notifyLoginRequiredOnce(discord: Discord, logger: Logger) {
       },
     ],
   })
-  writeLoginState({
-    lastAttempt: state?.lastAttempt ?? Date.now(),
-    notified: true,
-  })
+  try {
+    writeLoginState({
+      lastAttempt: state?.lastAttempt ?? Date.now(),
+      notified: true,
+    })
+  } catch (writeError) {
+    logger.warn('Failed to persist notified state', writeError as Error)
+  }
 }
 
 /**
@@ -569,7 +579,7 @@ async function main() {
     }
   } catch (err) {
     if (err instanceof BooklogLoginRequiredError) {
-      await notifyLoginRequiredOnce(discord, logger)
+      await notifyLoginRequiredOnce(discord, logger, err)
       return
     }
     logger.error('Error occurred', err as Error)

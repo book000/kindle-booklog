@@ -391,13 +391,19 @@ test('バックオフ期間を過ぎていれば再び手動ログインを待�
   throw error
 })
 
-test('認証済みなら状態ファイルを削除する', async () => {
+test('本棚取得（a#execExport の確認）に成功したら状態ファイルを削除する', async () => {
   await withTemporaryState(async (statePath) => {
     fs.writeFileSync(
       statePath,
       JSON.stringify({ lastAttempt: 1, notified: true })
     )
-    await createBooklog(new FakePage(true)).login()
+    const browser = {
+      newPage: () => Promise.resolve(new FakeExportPage()),
+    } as unknown as Browser
+    await withFakeFetch(
+      () => Promise.resolve(new Response('', { status: 200 })),
+      () => new Booklog({ browser }).getBookshelfBooks()
+    )
     assert.equal(fs.existsSync(statePath), false)
   })
 }).catch((error: unknown) => {
@@ -418,6 +424,31 @@ test('a#execExport が見つからなければ BooklogLoginRequiredError を投�
         (error.cause as Error).message === 'timeout'
     )
     assert.equal(fs.existsSync(statePath), true)
+  })
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('a#execExport の失敗では通知済みフラグを維持する', async () => {
+  await withTemporaryState(async (statePath) => {
+    fs.writeFileSync(
+      statePath,
+      JSON.stringify({ lastAttempt: 1, notified: true })
+    )
+    const page = new FakeExportPage()
+    page.waitForSelector = () => Promise.reject(new Error('timeout'))
+    const browser = {
+      newPage: () => Promise.resolve(page),
+      cookies: () => Promise.resolve([]),
+    } as unknown as Browser
+    const booklog = new Booklog({ browser })
+    // 認証済みのログインでは状態ファイルを消さない
+    await booklog.login()
+    await assert.rejects(booklog.getBookshelfBooks(), BooklogLoginRequiredError)
+    const state = JSON.parse(fs.readFileSync(statePath, 'utf8')) as {
+      notified: boolean
+    }
+    assert.equal(state.notified, true)
   })
 }).catch((error: unknown) => {
   throw error

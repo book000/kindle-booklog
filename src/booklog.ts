@@ -84,19 +84,36 @@ export function writeLoginState(state: BooklogLoginState): void {
 }
 
 /**
+ * 状態ファイル操作の失敗で本来のエラーが隠れないよう、失敗を警告に留めて実行する
+ *
+ * @param action 実行する処理
+ */
+function bestEffort(action: () => void): void {
+  try {
+    action()
+  } catch (error) {
+    console.warn('Failed to update Booklog login state:', error)
+  }
+}
+
+/**
  * 手動ログイン状態を削除する
  */
 function clearLoginState(): void {
-  fs.rmSync(getLoginStatePath(), { force: true })
+  bestEffort(() => {
+    fs.rmSync(getLoginStatePath(), { force: true })
+  })
 }
 
 /**
  * 認証が必要になった時刻を記録する（通知済みフラグは維持する）
  */
 function markLoginRequired(): void {
-  writeLoginState({
-    lastAttempt: Date.now(),
-    notified: readLoginState()?.notified ?? false,
+  bestEffort(() => {
+    writeLoginState({
+      lastAttempt: Date.now(),
+      notified: readLoginState()?.notified ?? false,
+    })
   })
 }
 
@@ -223,14 +240,17 @@ export default class Booklog {
       isLoginPage = page.url().startsWith(BOOKLOG_LOGIN_URL)
     }
     if (!isLoginPage) {
-      await this.onLoggedIn()
+      // 状態ファイルは本棚取得（a#execExport の確認）の成功時に削除する
+      await this.saveCookies()
       await page.close()
       return
     }
 
     // 直近に待機に失敗している間は、待たずに即座に失敗させる
     const state = readLoginState()
-    if (state && Date.now() - state.lastAttempt < MANUAL_LOGIN_BACKOFF_MS) {
+    // 時計が戻って lastAttempt が未来になった場合はバックオフ扱いにしない
+    const elapsedMs = state ? Date.now() - state.lastAttempt : -1
+    if (elapsedMs >= 0 && elapsedMs < MANUAL_LOGIN_BACKOFF_MS) {
       await page.close()
       throw new BooklogLoginRequiredError('Booklog manual login required')
     }
@@ -260,21 +280,25 @@ export default class Booklog {
       throw new BooklogLoginRequiredError('Booklog manual login required')
     }
 
-    await this.onLoggedIn()
+    clearLoginState()
+    await this.saveCookies()
     await page.close()
   }
 
   /**
-   * ログイン成功時の後処理（手動ログイン状態の削除と Cookie の保存）
+   * ブクログの Cookie を保存する（保存失敗は警告に留める）
    */
-  private async onLoggedIn(): Promise<void> {
-    clearLoginState()
+  private async saveCookies(): Promise<void> {
     try {
       // Chromium 再起動でセッション Cookie が失われるため、有効期限を付けて保存する
       const now = Date.now()
       const allCookies = await this.options.browser.cookies()
       const cookies = allCookies
-        .filter((cookie) => cookie.domain.endsWith('booklog.jp'))
+        .filter(
+          (cookie) =>
+            cookie.domain === 'booklog.jp' ||
+            cookie.domain.endsWith('.booklog.jp')
+        )
         .map((cookie) =>
           cookie.session || cookie.expires <= 0
             ? {
@@ -287,6 +311,8 @@ export default class Booklog {
       const cookiePath = getCookiePath()
       fs.mkdirSync(path.dirname(cookiePath), { recursive: true })
       fs.writeFileSync(cookiePath, JSON.stringify(cookies), { mode: 0o600 })
+      // mode は新規作成時にしか効かないため、既存ファイルにも権限を適用する
+      fs.chmodSync(cookiePath, 0o600)
     } catch (error) {
       console.warn('Failed to save Booklog cookies:', error)
     }
@@ -295,7 +321,7 @@ export default class Booklog {
   /**
    * 保存済みの Cookie（期限切れを除く）をブラウザに復元する
    *
-   * @returns 復元を試みた場合は true
+   * @returns 復元対象の Cookie があった場合は true
    */
   private async restoreSavedCookies(): Promise<boolean> {
     const cookiePath = getCookiePath()
@@ -352,6 +378,7 @@ export default class Booklog {
         cause: error,
       })
     }
+    clearLoginState()
 
     const url = await page.$eval('a#execExport', (element) =>
       element.getAttribute('href')
