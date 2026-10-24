@@ -26,7 +26,7 @@ Amazon.co.jp で購入した Kindle 作品を取得して、[ブクログ](https
 
 ブクログのログインフォームは reCAPTCHA による検証があるため、本アプリケーションから ID・パスワードを自動送信しません。Docker では Chromium のユーザーデータを `/data/userdata` に保存し、認証済みセッションをコンテナ再作成後も再利用します。
 
-初回起動またはセッション切れ時にはログに `Booklog manual login required` と表示されます。その場合は VNC で Chromium を開き、ブクログへ手動ログインしてください。既定では 5 分間ログイン完了を待ちます。待機時間は `BOOKLOG_MANUAL_LOGIN_TIMEOUT_MS` で変更できます。
+初回起動またはセッション切れ時にはログに `Booklog manual login required` と表示されます。その場合は VNC で Chromium を開き、ブクログへ手動ログインしてください。既定では 5 分間ログイン完了を待ちます。待機時間は `BOOKLOG_MANUAL_LOGIN_TIMEOUT_MS` で変更できます。待機がタイムアウトした後の 1 時間は待機せずに即時失敗し（状態は `BOOKLOG_LOGIN_STATE`、既定 `data/booklog-login-pending.json`）、Discord への通知は停止ごとに 1 回だけ行います。ログイン後のブクログ Cookie は `COOKIE_BOOKLOG`（既定 `data/cookie-booklog.json`）に保存し、プロファイルのセッションが切れた場合に復元します。
 
 VNC ポートは認証なしで動作するため、Docker Compose では localhost のみに公開します。別マシンから操作する場合は SSH ポートフォワーディングなどを利用してください。
 

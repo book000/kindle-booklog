@@ -1,7 +1,20 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import { test } from 'node:test'
 import type { Browser } from 'puppeteer-core'
-import Booklog from './booklog'
+import Booklog, { BooklogLoginRequiredError } from './booklog'
+
+// 既存テストが実ファイル（data/）を触らないよう保存先を隔離する
+const isolatedDirectory = fs.mkdtempSync(
+  path.join(os.tmpdir(), 'booklog-test-')
+)
+process.env.BOOKLOG_LOGIN_STATE = path.join(isolatedDirectory, 'state.json')
+process.env.COOKIE_BOOKLOG = path.join(isolatedDirectory, 'cookie.json')
+process.on('exit', () => {
+  fs.rmSync(isolatedDirectory, { recursive: true, force: true })
+})
 
 const BOOKLOG_EXPORT_URL = 'https://booklog.jp/export'
 const BOOKLOG_LOGIN_URL = 'https://booklog.jp/login'
@@ -157,6 +170,8 @@ test('未認証なら資格情報を自動送信せず手動ログイン要求�
   try {
     await assert.rejects(booklog.login(), /Booklog manual login required/)
   } finally {
+    // 後続テストがバックオフの影響を受けないよう状態を消す
+    fs.rmSync(process.env.BOOKLOG_LOGIN_STATE ?? '', { force: true })
     if (previousTimeout === undefined) {
       delete process.env.BOOKLOG_MANUAL_LOGIN_TIMEOUT_MS
     } else {
@@ -270,6 +285,140 @@ test('CSV エクスポート取得が再試行上限に達したら最後のエ�
   )
 
   assert.equal(calls, 3)
+}).catch((error: unknown) => {
+  throw error
+})
+
+/**
+ * 一時ディレクトリを状態・Cookie ファイルの保存先に設定して処理を実行する
+ *
+ * @param run 実行する処理
+ */
+async function withTemporaryState(run: (statePath: string) => Promise<void>) {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'booklog-state-'))
+  const statePath = path.join(directory, 'state.json')
+  const previous = {
+    state: process.env.BOOKLOG_LOGIN_STATE,
+    cookie: process.env.COOKIE_BOOKLOG,
+    timeout: process.env.BOOKLOG_MANUAL_LOGIN_TIMEOUT_MS,
+  }
+  process.env.BOOKLOG_LOGIN_STATE = statePath
+  process.env.COOKIE_BOOKLOG = path.join(directory, 'cookie.json')
+  process.env.BOOKLOG_MANUAL_LOGIN_TIMEOUT_MS = '1'
+  try {
+    await run(statePath)
+  } finally {
+    for (const [key, value] of [
+      ['BOOKLOG_LOGIN_STATE', previous.state],
+      ['COOKIE_BOOKLOG', previous.cookie],
+      ['BOOKLOG_MANUAL_LOGIN_TIMEOUT_MS', previous.timeout],
+    ] as const) {
+      if (value === undefined) Reflect.deleteProperty(process.env, key)
+      else process.env[key] = value
+    }
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
+}
+
+test('バックオフ期間内は手動ログインを待たず即座に BooklogLoginRequiredError を投げる', async () => {
+  await withTemporaryState(async (statePath) => {
+    fs.writeFileSync(
+      statePath,
+      JSON.stringify({ lastAttempt: Date.now(), notified: true })
+    )
+    // 待機すれば成功する page でも、待たずに失敗する
+    const page = new FakePage(false, true)
+    await assert.rejects(createBooklog(page).login(), BooklogLoginRequiredError)
+    assert.equal(page.closed, true)
+  })
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('手動ログインがタイムアウトしたら状態ファイルを書き込む', async () => {
+  await withTemporaryState(async (statePath) => {
+    await assert.rejects(
+      createBooklog(new FakePage(false)).login(),
+      BooklogLoginRequiredError
+    )
+    const state = JSON.parse(fs.readFileSync(statePath, 'utf8')) as {
+      lastAttempt: unknown
+      notified: unknown
+    }
+    assert.equal(typeof state.lastAttempt, 'number')
+    assert.equal(state.notified, false)
+  })
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('バックオフ期間を過ぎていれば再び手動ログインを待ち、成功すれば状態と Cookie を保存する', async () => {
+  await withTemporaryState(async (statePath) => {
+    fs.writeFileSync(
+      statePath,
+      JSON.stringify({ lastAttempt: Date.now() - 3_700_000, notified: true })
+    )
+    const browser = {
+      newPage: () => Promise.resolve(new FakePage(false, true)),
+      cookies: () =>
+        Promise.resolve([
+          {
+            name: 'a',
+            value: 'x',
+            domain: '.booklog.jp',
+            session: true,
+            expires: -1,
+          },
+          {
+            name: 'b',
+            value: 'x',
+            domain: '.amazon.co.jp',
+            session: true,
+            expires: -1,
+          },
+        ]),
+    } as unknown as Browser
+    await new Booklog({ browser }).login()
+    assert.equal(fs.existsSync(statePath), false)
+    const saved = JSON.parse(
+      fs.readFileSync(process.env.COOKIE_BOOKLOG ?? '', 'utf8')
+    ) as { session: boolean; expires: number }[]
+    assert.equal(saved.length, 1)
+    assert.equal(saved[0].session, false)
+    assert.ok(saved[0].expires > Date.now() / 1000)
+  })
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('認証済みなら状態ファイルを削除する', async () => {
+  await withTemporaryState(async (statePath) => {
+    fs.writeFileSync(
+      statePath,
+      JSON.stringify({ lastAttempt: 1, notified: true })
+    )
+    await createBooklog(new FakePage(true)).login()
+    assert.equal(fs.existsSync(statePath), false)
+  })
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('a#execExport が見つからなければ BooklogLoginRequiredError を投げ状態を記録する', async () => {
+  await withTemporaryState(async (statePath) => {
+    const page = new FakeExportPage()
+    page.waitForSelector = () => Promise.reject(new Error('timeout'))
+    const browser = {
+      newPage: () => Promise.resolve(page),
+    } as unknown as Browser
+    await assert.rejects(
+      new Booklog({ browser }).getBookshelfBooks(),
+      (error: unknown) =>
+        error instanceof BooklogLoginRequiredError &&
+        (error.cause as Error).message === 'timeout'
+    )
+    assert.equal(fs.existsSync(statePath), true)
+  })
 }).catch((error: unknown) => {
   throw error
 })
