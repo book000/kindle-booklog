@@ -2,7 +2,12 @@ import fs from 'node:fs'
 import { setTimeout as delay } from 'node:timers/promises'
 import puppeteer, { Browser, LaunchOptions } from 'puppeteer-core'
 import Amazon from './amazon'
-import Booklog, { BooklogBook } from './booklog'
+import Booklog, {
+  BooklogBook,
+  BooklogLoginRequiredError,
+  readLoginState,
+  writeLoginState,
+} from './booklog'
 import { Logger, Discord, DiscordOptions } from '@book000/node-utils'
 import { KindleBook } from './models/kindle-search-response'
 import { pruneDebugDirectory, saveDebugInfo } from './debug-info'
@@ -286,6 +291,45 @@ function logChromiumLaunchDiagnostics(logger: Logger, userDataDir: string) {
     )
   }
 }
+/**
+ * ブクログの手動ログインが必要な旨を、停止ごとに 1 回だけ Discord に通知する
+ *
+ * @param discord Discordクラスインスタンス
+ * @param logger ロガー
+ * @param error ログイン要求エラー
+ */
+async function notifyLoginRequiredOnce(
+  discord: Discord,
+  logger: Logger,
+  error: BooklogLoginRequiredError
+) {
+  const cause = error.cause instanceof Error ? `: ${error.cause.message}` : ''
+  logger.info(`Booklog login required (${error.message}${cause})`)
+  const state = readLoginState()
+  if (state?.notified) {
+    return
+  }
+  await discord.sendMessage({
+    embeds: [
+      {
+        title: 'ブクログの手動ログインが必要です',
+        description: 'VNC で Chromium を開き、ブクログへログインしてください。',
+        color: 0xff_00_00, // red
+        footer: {
+          text: 'Powered by kindle-booklog',
+        },
+      },
+    ],
+  })
+  try {
+    writeLoginState({
+      lastAttempt: state?.lastAttempt ?? Date.now(),
+      notified: true,
+    })
+  } catch (writeError) {
+    logger.warn('Failed to persist notified state', writeError as Error)
+  }
+}
 
 /**
  * リトライ前に stale なロックが残ったままにならないよう、Singleton* を削除する
@@ -462,6 +506,10 @@ async function main() {
       await updateAllBooks(amazon, booklog, discord, kindleBooks, booklogBooks)
     }
   } catch (err) {
+    if (err instanceof BooklogLoginRequiredError) {
+      await notifyLoginRequiredOnce(discord, logger, err)
+      return
+    }
     logger.error('Error occurred', err as Error)
     await saveDebugInfo(browser, logger)
 
