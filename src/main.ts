@@ -366,7 +366,10 @@ async function launchBrowserWithDiagnostics(
     return await puppeteer.launch(options)
   } catch (error) {
     firstAttemptError = error
-    logger.error('Failed to launch Chromium (attempt 1/2)', error as Error)
+    // リトライで回復することが多く、node-utils は warn 以上を GlitchTip に送るため info で記録する（最終失敗は error のまま）
+    logger.info('Failed to launch Chromium (attempt 1/2), retrying', {
+      error: error instanceof Error ? error.stack : String(error),
+    })
     // ロック削除前の状態を記録してから自衛的なクリーンアップを行う
     logChromiumLaunchDiagnostics(logger, userDataDir)
     removeChromiumSingletonLocks(userDataDir)

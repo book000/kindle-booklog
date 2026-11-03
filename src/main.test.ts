@@ -10,7 +10,7 @@ interface LogEntry {
   message: string
 }
 
-test('Chromium 起動診断は成功時に情報ログとして出力し、起動失敗は error にする', () => {
+test('Chromium 起動診断は成功時に情報ログとして出力し、1 回目の起動失敗は info にする', () => {
   const temporaryDirectory = fs.mkdtempSync(
     path.join(os.tmpdir(), 'kindle-booklog-main-test-')
   )
@@ -103,8 +103,8 @@ process.on('exit', () => {
     assert.equal(
       logEntries.some(
         (entry) =>
-          entry.level === 'error' &&
-          entry.message === 'Failed to launch Chromium (attempt 1/2)'
+          entry.level === 'info' &&
+          entry.message === 'Failed to launch Chromium (attempt 1/2), retrying'
       ),
       true
     )
