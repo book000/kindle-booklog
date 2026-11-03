@@ -10,7 +10,13 @@ interface LogEntry {
   message: string
 }
 
-test('Chromium 起動診断は成功時に情報ログとして出力し、1 回目の起動失敗は info にする', () => {
+/**
+ * puppeteer.launch をモックして main.ts を実行し、記録されたログを返す
+ *
+ * @param alwaysFail true なら全ての起動を失敗させる（false は 1 回目のみ失敗）
+ * @returns 記録されたログエントリ
+ */
+function runMainWithLaunchFailures(alwaysFail: boolean): LogEntry[] {
   const temporaryDirectory = fs.mkdtempSync(
     path.join(os.tmpdir(), 'kindle-booklog-main-test-')
   )
@@ -54,7 +60,7 @@ Module._load = function (request, parent, isMain) {
       default: {
         launch: async () => {
           launchAttempts += 1
-          if (launchAttempts === 1) {
+          if (${alwaysFail} || launchAttempts === 1) {
             throw new Error('first launch failure')
           }
           return browser
@@ -91,9 +97,15 @@ process.on('exit', () => {
 
     assert.equal(result.status, 0, result.stderr)
 
-    const logEntries = JSON.parse(
-      fs.readFileSync(logPath, 'utf8')
-    ) as LogEntry[]
+    return JSON.parse(fs.readFileSync(logPath, 'utf8')) as LogEntry[]
+  } finally {
+    fs.rmSync(temporaryDirectory, { recursive: true, force: true })
+  }
+}
+
+test('Chromium 起動診断は成功時に情報ログとして出力し、1 回目の起動失敗は info にする', () => {
+  const logEntries = runMainWithLaunchFailures(false)
+  {
     const diagnosticEntries = logEntries.filter((entry) =>
       entry.message.startsWith('Chromium launch diagnostics:')
     )
@@ -108,9 +120,19 @@ process.on('exit', () => {
       ),
       true
     )
-  } finally {
-    fs.rmSync(temporaryDirectory, { recursive: true, force: true })
   }
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('Chromium の最終起動失敗は error を 1 回だけ報告する', () => {
+  const errors = runMainWithLaunchFailures(true).filter(
+    (entry) => entry.level === 'error'
+  )
+  assert.deepEqual(
+    errors.map((entry) => entry.message),
+    ['Failed to launch Chromium']
+  )
 }).catch((error: unknown) => {
   throw error
 })

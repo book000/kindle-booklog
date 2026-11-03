@@ -9,7 +9,7 @@ import { pruneDebugDirectory, saveDebugInfo } from './debug-info'
 
 /** テスト用ロガーが記録するログエントリ */
 interface LogEntry {
-  level: 'debug' | 'warn'
+  level: 'debug' | 'info' | 'warn'
   message: string
 }
 
@@ -23,6 +23,9 @@ function createLogger() {
   const logger = {
     debug: (message: string) => {
       entries.push({ level: 'debug', message })
+    },
+    info: (message: string) => {
+      entries.push({ level: 'info', message })
     },
     warn: (message: string) => {
       entries.push({ level: 'warn', message })
@@ -157,6 +160,32 @@ test('pruneDebugDirectory は 7 日より古いファイルのみ削除する', 
       ['error-new.png', 'unrelated.json']
     )
     return Promise.resolve()
+  })
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('saveDebugInfo は browser.pages() の失敗を warn ではなく info で記録する', async () => {
+  await withDebugDirectory(async () => {
+    const { logger, entries } = createLogger()
+    const browser = {
+      pages: () => Promise.reject(new Error('browser unresponsive')),
+    } as unknown as Browser
+
+    await saveDebugInfo(browser, logger)
+
+    assert.equal(
+      entries.some((entry) => entry.level === 'warn'),
+      false
+    )
+    assert.equal(
+      entries.some(
+        (entry) =>
+          entry.level === 'info' &&
+          entry.message === 'Failed to save debug info'
+      ),
+      true
+    )
   })
 }).catch((error: unknown) => {
   throw error
