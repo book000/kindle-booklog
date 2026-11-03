@@ -382,11 +382,17 @@ async function launchBrowserWithDiagnostics(
   try {
     return await puppeteer.launch(options)
   } catch (error) {
-    logger.error('Failed to launch Chromium (attempt 2/2)', error as Error)
-    logChromiumLaunchDiagnostics(logger, userDataDir)
-    throw new Error('Failed to launch Chromium after retry', {
-      cause: { firstAttemptError, secondAttemptError: error },
+    // 最終失敗は呼び出し元が error 報告するため、ここでは info にして二重報告を避ける
+    logger.info('Failed to launch Chromium (attempt 2/2)', {
+      firstAttemptError:
+        firstAttemptError instanceof Error
+          ? firstAttemptError.stack
+          : String(firstAttemptError),
+      secondAttemptError: error instanceof Error ? error.stack : String(error),
     })
+    logChromiumLaunchDiagnostics(logger, userDataDir)
+    // cause は Error のままにする（Sentry が原因を連鎖して記録する）
+    throw new Error('Failed to launch Chromium after retry', { cause: error })
   }
 }
 

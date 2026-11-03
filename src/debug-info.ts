@@ -130,6 +130,9 @@ export async function saveDebugInfo(browser: Browser, logger: Logger) {
       }
     }
   } catch (error) {
-    logger.warn('Failed to save debug info', error as Error)
+    // ブラウザ応答不能時は一次例外と二重報告になるため info にする
+    logger.info('Failed to save debug info', {
+      error: error instanceof Error ? error.stack : String(error),
+    })
   }
 }
