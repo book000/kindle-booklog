@@ -8,9 +8,31 @@ import Booklog, {
   readLoginState,
   writeLoginState,
 } from './booklog'
-import { Logger, Discord, DiscordOptions } from '@book000/node-utils'
+import {
+  Logger,
+  Discord,
+  DiscordOptions,
+  SentryMeta,
+} from '@book000/node-utils'
 import { KindleBook } from './models/kindle-search-response'
-import { pruneDebugDirectory, saveDebugInfo } from './debug-info'
+import {
+  captureChromiumLaunch,
+  CHROMIUM_SINGLETON_LOCK_FILES,
+  ChromiumLaunchAttemptReport,
+  ChromiumLaunchCapture,
+  ChromiumLaunchEnvironment,
+  ChromiumLaunchError,
+  ChromiumLaunchReportContext,
+  collectChromiumLaunchEnvironment,
+  FINAL_EXIT_WAIT_MS,
+  readChromiumVersion,
+  VERSION_TIMEOUT_MS,
+} from './chromium-launch-diagnostics'
+import {
+  pruneDebugDirectory,
+  saveChromiumLaunchLog,
+  saveDebugInfo,
+} from './debug-info'
 
 interface Config {
   amazon: {
@@ -255,39 +277,31 @@ async function updateAllBooks(
   })
 }
 
-const CHROMIUM_SINGLETON_LOCK_FILES = [
-  'SingletonLock',
-  'SingletonCookie',
-  'SingletonSocket',
-]
-
 /**
  * Chromium 起動時の診断情報をログに出力する
  *
  * @param logger ロガー
- * @param userDataDir Chromium の userDataDir パス
+ * @param environment collectChromiumLaunchEnvironment で収集した起動環境
  */
-function logChromiumLaunchDiagnostics(logger: Logger, userDataDir: string) {
-  const display = process.env.DISPLAY
-  logger.info(`Chromium launch diagnostics: DISPLAY=${display ?? '(not set)'}`)
+function logChromiumLaunchDiagnostics(
+  logger: Logger,
+  environment: ChromiumLaunchEnvironment
+) {
+  logger.info(
+    `Chromium launch diagnostics: DISPLAY=${environment.display ?? '(not set)'}`
+  )
 
-  if (display) {
-    // entrypoint.sh と同じ規則で X11 ソケットパスを組み立てる(":99" -> "X99")
-    const displayNumber = display.replace(/^:/, '').split('.', 1)[0]
-    const socketPath = `/tmp/.X11-unix/X${displayNumber}`
+  if (environment.x11Socket) {
     logger.info(
-      `Chromium launch diagnostics: X11 socket (${socketPath}) ${
-        fs.existsSync(socketPath) ? 'exists' : 'missing'
+      `Chromium launch diagnostics: X11 socket (${environment.x11Socket.path}) ${
+        environment.x11Socket.exists ? 'exists' : 'missing'
       }`
     )
   }
 
-  for (const lockFile of CHROMIUM_SINGLETON_LOCK_FILES) {
-    const lockPath = `${userDataDir}/${lockFile}`
+  for (const [lockFile, exists] of Object.entries(environment.singletonFiles)) {
     logger.info(
-      `Chromium launch diagnostics: ${lockFile} ${
-        fs.existsSync(lockPath) ? 'exists' : 'missing'
-      }`
+      `Chromium launch diagnostics: ${lockFile} ${exists ? 'exists' : 'missing'}`
     )
   }
 }
@@ -346,7 +360,42 @@ function removeChromiumSingletonLocks(userDataDir: string) {
 }
 
 /**
+ * 失敗した起動 1 回分の診断レポートを作り、stderr をログファイルに保存する
+ *
+ * 診断の失敗で起動の結果を変えないよう、例外は投げず、info ログに記録して undefined を返す
+ *
+ * @param logger ロガー
+ * @param capture 起動の観測結果
+ * @param step レポート確定前に採取するサンプル。final は子プロセスの終了を待ってから採取する
+ * @param context レポートの内容
+ * @returns 診断レポート。作成に失敗した場合は undefined
+ */
+async function recordFailedAttempt(
+  logger: Logger,
+  capture: ChromiumLaunchCapture,
+  step: 'retry-start' | 'final',
+  context: ChromiumLaunchReportContext
+): Promise<ChromiumLaunchAttemptReport | undefined> {
+  try {
+    if (step === 'final') {
+      await capture.waitForExit(FINAL_EXIT_WAIT_MS)
+    }
+    capture.sample(step)
+    const report = capture.buildReport(context)
+    saveChromiumLaunchLog(logger, report, capture.stderr().text)
+    return report
+  } catch (error) {
+    logger.info('Failed to record Chromium launch diagnostics', {
+      error: error instanceof Error ? error.stack : String(error),
+    })
+    return undefined
+  }
+}
+
+/**
  * 診断ログを出力しつつ Chromium を起動する。起動に失敗した場合、ロックファイルを削除した上で 1 回だけリトライする
+ *
+ * 失敗した場合は、各試行の診断レポートを持つ ChromiumLaunchError を投げる。
  *
  * @param options puppeteer の起動オプション
  * @param logger ロガー
@@ -357,42 +406,115 @@ async function launchBrowserWithDiagnostics(
   logger: Logger
 ): Promise<Browser> {
   const userDataDir = options.userDataDir ?? ''
-  let firstAttemptError: unknown
-
-  logger.info('Launching Chromium (attempt 1/2)')
-  logChromiumLaunchDiagnostics(logger, userDataDir)
-
-  try {
-    return await puppeteer.launch(options)
-  } catch (error) {
-    firstAttemptError = error
-    // リトライで回復することが多く、node-utils は warn 以上を GlitchTip に送るため info で記録する（最終失敗は error のまま）
-    logger.info('Failed to launch Chromium (attempt 1/2), retrying', {
-      error: error instanceof Error ? error.stack : String(error),
-    })
-    // ロック削除前の状態を記録してから自衛的なクリーンアップを行う
-    logChromiumLaunchDiagnostics(logger, userDataDir)
-    removeChromiumSingletonLocks(userDataDir)
-    await delay(3000)
+  const executablePath = options.executablePath ?? ''
+  const captureOptions = {
+    executablePath,
+    // puppeteer の既定の起動 timeout
+    timeoutMs: options.timeout ?? 30_000,
+  }
+  const reportBase = {
+    userDataDir,
+    headless: options.headless ?? true,
+    args: options.args ?? [],
   }
 
-  logger.info('Launching Chromium (attempt 2/2)')
-  logChromiumLaunchDiagnostics(logger, userDataDir)
+  logger.info('Launching Chromium (attempt 1/2)')
+  const firstEnvironment = collectChromiumLaunchEnvironment(userDataDir)
+  logChromiumLaunchDiagnostics(logger, firstEnvironment)
 
-  try {
-    return await puppeteer.launch(options)
-  } catch (error) {
-    // 最終失敗は呼び出し元が error 報告するため、ここでは info にして二重報告を避ける
-    logger.info('Failed to launch Chromium (attempt 2/2)', {
-      firstAttemptError:
-        firstAttemptError instanceof Error
-          ? firstAttemptError.stack
-          : String(firstAttemptError),
-      secondAttemptError: error instanceof Error ? error.stack : String(error),
-    })
-    logChromiumLaunchDiagnostics(logger, userDataDir)
-    // cause は Error のままにする（Sentry が原因を連鎖して記録する）
-    throw new Error('Failed to launch Chromium after retry', { cause: error })
+  const first = await captureChromiumLaunch(captureOptions, () =>
+    puppeteer.launch(options)
+  )
+  if (first.ok) {
+    return first.value
+  }
+  // リトライで回復することが多く、node-utils は warn 以上を GlitchTip に送るため info で記録する（最終失敗は error のまま）
+  logger.info('Failed to launch Chromium (attempt 1/2), retrying', {
+    error:
+      first.error instanceof Error ? first.error.stack : String(first.error),
+  })
+  // ロック削除前の状態を記録してから自衛的なクリーンアップを行う
+  logChromiumLaunchDiagnostics(
+    logger,
+    collectChromiumLaunchEnvironment(userDataDir)
+  )
+  removeChromiumSingletonLocks(userDataDir)
+  // バージョン取得は待機時間(3 秒)の中に収め、リトライを遅らせない
+  const [, chromiumVersion] = await Promise.all([
+    delay(3000),
+    readChromiumVersion(executablePath, VERSION_TIMEOUT_MS),
+  ])
+  const firstReport = await recordFailedAttempt(
+    logger,
+    first.capture,
+    'retry-start',
+    {
+      ...reportBase,
+      attempt: 1,
+      environment: firstEnvironment,
+      chromiumVersion,
+      error: first.error,
+    }
+  )
+
+  logger.info('Launching Chromium (attempt 2/2)')
+  const secondEnvironment = collectChromiumLaunchEnvironment(userDataDir)
+  logChromiumLaunchDiagnostics(logger, secondEnvironment)
+
+  const second = await captureChromiumLaunch(captureOptions, () =>
+    puppeteer.launch(options)
+  )
+  if (second.ok) {
+    return second.value
+  }
+  // 最終失敗は呼び出し元が error 報告するため、ここでは info にして二重報告を避ける
+  logger.info('Failed to launch Chromium (attempt 2/2)', {
+    firstAttemptError:
+      first.error instanceof Error ? first.error.stack : String(first.error),
+    secondAttemptError:
+      second.error instanceof Error ? second.error.stack : String(second.error),
+  })
+  logChromiumLaunchDiagnostics(
+    logger,
+    collectChromiumLaunchEnvironment(userDataDir)
+  )
+  const secondReport = await recordFailedAttempt(
+    logger,
+    second.capture,
+    'final',
+    {
+      ...reportBase,
+      attempt: 2,
+      environment: secondEnvironment,
+      chromiumVersion,
+      error: second.error,
+    }
+  )
+  // cause は Error のままにする（Sentry が原因を連鎖して記録する）
+  throw new ChromiumLaunchError('Failed to launch Chromium after retry', {
+    cause: second.error,
+    attempts: [firstReport, secondReport].filter(
+      (report) => report !== undefined
+    ),
+  })
+}
+
+/**
+ * Chromium の最終起動失敗を GlitchTip へ報告する際の extra・tags を作る
+ *
+ * @param error 起動失敗のエラー
+ * @returns ChromiumLaunchError の場合は診断レポートを持つ SentryMeta、それ以外は undefined
+ */
+function createLaunchFailureMeta(error: unknown): SentryMeta | undefined {
+  if (!(error instanceof ChromiumLaunchError)) {
+    return undefined
+  }
+  const lastAttempt = error.attempts.at(-1)
+  return {
+    extra: { chromiumLaunch: error.attempts },
+    ...(lastAttempt && {
+      tags: { 'chromium.failure_kind': lastAttempt.failureKind },
+    }),
   }
 }
 
@@ -454,7 +576,11 @@ async function main() {
   try {
     browser = await launchBrowserWithDiagnostics(puppeteerOptions, logger)
   } catch (error) {
-    logger.error('Failed to launch Chromium', error as Error)
+    logger.error(
+      'Failed to launch Chromium',
+      error as Error,
+      createLaunchFailureMeta(error)
+    )
     // Discord API の embed description は 4096 文字までのため切り詰める
     const description = (
       error instanceof Error
