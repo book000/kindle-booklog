@@ -2,11 +2,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { Browser } from 'puppeteer-core'
 import type { Logger } from '@book000/node-utils'
+import type { ChromiumLaunchAttemptReport } from './chromium-launch-diagnostics'
 
 const DIAGNOSTICS_TIMEOUT_MS = 5000
 
-/** saveDebugInfo が出力するファイル名のパターン（pruneDebugDirectory の削除対象） */
-const DEBUG_FILE_PATTERN = /^error-.*\.(png|html)$/
+/** saveDebugInfo / saveChromiumLaunchLog が出力するファイル名のパターン（pruneDebugDirectory の削除対象） */
+const DEBUG_FILE_PATTERN = /^error-.*\.(png|html|log)$/
 
 /** デバッグ情報の保持期間（ミリ秒） */
 const DEBUG_RETENTION_MS = 7 * 24 * 60 * 60 * 1000
@@ -42,7 +43,7 @@ function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
 /**
  * デバッグディレクトリ内の保持期間を過ぎた古いファイルを削除する
  *
- * saveDebugInfo が出力したファイル（error-*.png / error-*.html）のみ対象とする
+ * saveDebugInfo / saveChromiumLaunchLog が出力したファイル（error-*.png / error-*.html / error-*.log）のみ対象とする
  *
  * ファイル単位で失敗を隔離し、失敗は debug ログのみ記録する。
  *
@@ -74,6 +75,42 @@ export function pruneDebugDirectory(logger: Logger, now = Date.now()) {
         `Failed to prune debug file ${name}: ${error instanceof Error ? error.message : String(error)}`
       )
     }
+  }
+}
+
+/**
+ * Chromium 起動に失敗した試行の診断レポートと stderr をログファイルに保存する
+ *
+ * report と stderr は秘匿済みであること。保存に失敗しても例外は投げず、
+ * 一次の失敗を上書きしないよう info ログにのみ記録する。
+ *
+ * @param logger ロガー
+ * @param report 失敗した試行の診断レポート
+ * @param stderr Chromium の stderr
+ */
+export function saveChromiumLaunchLog(
+  logger: Logger,
+  report: ChromiumLaunchAttemptReport,
+  stderr: string
+) {
+  const debugDirectory = getDebugDirectory()
+  try {
+    fs.mkdirSync(debugDirectory, { recursive: true })
+    const timestamp = new Date().toISOString().replaceAll(':', '-')
+    // stderrTail は stderr 本体と重複するため要約から除く
+    const summary = JSON.stringify(
+      { ...report, stderrTail: undefined },
+      null,
+      2
+    )
+    fs.writeFileSync(
+      `${debugDirectory}/error-chromium-launch-${timestamp}-attempt${report.attempt}.log`,
+      `${summary}\n\n--- stderr ---\n${stderr}`
+    )
+  } catch (error) {
+    logger.info('Failed to save Chromium launch log', {
+      error: error instanceof Error ? error.stack : String(error),
+    })
   }
 }
 

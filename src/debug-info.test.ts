@@ -5,7 +5,12 @@ import path from 'node:path'
 import { test } from 'node:test'
 import type { Browser } from 'puppeteer-core'
 import type { Logger } from '@book000/node-utils'
-import { pruneDebugDirectory, saveDebugInfo } from './debug-info'
+import type { ChromiumLaunchAttemptReport } from './chromium-launch-diagnostics'
+import {
+  pruneDebugDirectory,
+  saveChromiumLaunchLog,
+  saveDebugInfo,
+} from './debug-info'
 
 /** テスト用ロガーが記録するログエントリ */
 interface LogEntry {
@@ -158,6 +163,102 @@ test('pruneDebugDirectory は 7 日より古いファイルのみ削除する', 
     assert.deepEqual(
       fs.readdirSync(directory).toSorted((a, b) => a.localeCompare(b)),
       ['error-new.png', 'unrelated.json']
+    )
+    return Promise.resolve()
+  })
+}).catch((error: unknown) => {
+  throw error
+})
+
+const chromiumLaunchReport: ChromiumLaunchAttemptReport = {
+  attempt: 1,
+  executablePath: '/usr/bin/chromium-browser',
+  userDataDir: '/data/userdata',
+  timeoutMs: 60_000,
+  headless: false,
+  args: ['--no-sandbox'],
+  processCaptured: true,
+  pid: 1234,
+  samples: [
+    {
+      label: 'timeout',
+      msSinceSpawn: 60_001,
+      alive: true,
+      exitCode: null,
+      signal: null,
+    },
+  ],
+  stderrTail: 'tail that duplicates the stderr body',
+  stderrTruncated: false,
+  chromiumVersion: 'Chromium 1.2.3',
+  environment: { display: ':99', x11Socket: null, singletonFiles: {} },
+  error: { name: 'TimeoutError', message: 'Timed out' },
+  failureKind: 'startup-timeout',
+}
+
+test('saveChromiumLaunchLog は試行ごとのログファイルに要約と stderr を保存する', async () => {
+  await withDebugDirectory((directory) => {
+    const { logger, entries } = createLogger()
+
+    saveChromiumLaunchLog(logger, chromiumLaunchReport, 'fake stderr body\n')
+
+    const files = fs.readdirSync(directory)
+    assert.equal(files.length, 1)
+    assert.match(files[0], /^error-chromium-launch-.+-attempt1\.log$/)
+    const content = fs.readFileSync(path.join(directory, files[0]), 'utf8')
+    assert.ok(content.includes('"failureKind": "startup-timeout"'))
+    assert.ok(content.includes('"pid": 1234'))
+    assert.ok(content.endsWith('\n\n--- stderr ---\nfake stderr body\n'))
+    assert.equal(content.includes('stderrTail'), false)
+    assert.deepEqual(entries, [])
+    return Promise.resolve()
+  })
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('saveChromiumLaunchLog は保存に失敗しても例外を投げず info で記録する', async () => {
+  await withDebugDirectory((directory) => {
+    const blocker = path.join(directory, 'blocker')
+    fs.writeFileSync(blocker, 'x')
+    process.env.DEBUG_DIRECTORY = path.join(blocker, 'sub')
+    const { logger, entries } = createLogger()
+
+    assert.doesNotThrow(() => {
+      saveChromiumLaunchLog(logger, chromiumLaunchReport, 'stderr')
+    })
+
+    assert.deepEqual(entries, [
+      { level: 'info', message: 'Failed to save Chromium launch log' },
+    ])
+    return Promise.resolve()
+  })
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('pruneDebugDirectory は Chromium 起動ログも 7 日を超えたものだけ削除する', async () => {
+  await withDebugDirectory((directory) => {
+    const now = Date.now()
+    const day = 24 * 60 * 60 * 1000
+    for (const [name, ageDays] of [
+      ['error-chromium-launch-old-attempt1.log', 8],
+      ['error-chromium-launch-new-attempt2.log', 6],
+      // error- で始まらないログ(アプリのログなど)は古くても削除しない
+      ['app.log', 30],
+    ] as const) {
+      const filePath = path.join(directory, name)
+      fs.writeFileSync(filePath, 'x')
+      const mtime = new Date(now - ageDays * day)
+      fs.utimesSync(filePath, mtime, mtime)
+    }
+    const { logger } = createLogger()
+
+    pruneDebugDirectory(logger, now)
+
+    assert.deepEqual(
+      fs.readdirSync(directory).toSorted((a, b) => a.localeCompare(b)),
+      ['app.log', 'error-chromium-launch-new-attempt2.log']
     )
     return Promise.resolve()
   })
