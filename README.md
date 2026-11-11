@@ -18,9 +18,44 @@ Amazon.co.jp で購入した Kindle 作品を取得して、[ブクログ](https
 2. `read.amazon.co.jp` から Kindle 作品の ASIN コードを取得します。
 3. ブクログの認証済みブラウザプロファイルを再利用します。未認証の場合は VNC で手動ログインし、以後は `/data/userdata` のプロファイルを再利用します。
 4. [エクスポートページ](https://booklog.jp/export) から本棚の蔵書データを CSV ファイルとしてエクスポートし、登録済みのアイテムを取得します。
-5. ASIN コードを元に既に登録されているかを確認・フィルタリングし、新しく購入された Kindle 本をピックアップします。さらに、本アプリケーションで一度でも登録したものを除外します。
+5. ASIN コードを元に既に登録されているかを確認・フィルタリングし、新しく購入された Kindle 本をピックアップします。
 6. 「登録情報の編集・削除」ページより本棚に登録します。
-7. Discord に通知します。
+7. ブクログでステータスが未設定の本のうち、Kindle の読書進捗を取得できて 99% 以上のものを「読み終わった」に更新します。`UPDATE_ALL_BOOKS=true` の場合は、これに加えて、Kindle の読書進捗を取得できた登録済みの本すべてについて、タグを更新し、進捗が 99% 以上なら「読み終わった」にも更新します。
+8. 新規登録・読了更新・全件更新の完了と、エラー発生時に Discord に通知します。
+
+## Setup
+
+`data/config.json` を作成します（`data/` は Git の管理対象外です）。パスは環境変数 `CONFIG_PATH` で変更できます。
+
+```json
+{
+  "amazon": {
+    "username": "Amazon のユーザー名",
+    "password": "Amazon のパスワード",
+    "otpSecret": "OTP のシークレット（2 段階認証を使う場合のみ）"
+  },
+  "discord": {},
+  "proxy": { "server": "http://proxy:8080", "username": "user", "password": "pass" },
+  "puppeteer": {}
+}
+```
+
+- `discord`: [`@book000/node-utils`](https://github.com/book000/node-utils) の `DiscordOptions` を指定します。
+- `proxy`、`puppeteer`: 省略できます。`proxy` の `username` と `password` は、両方指定した場合のみ認証に使われます。`puppeteer` は Puppeteer の起動オプションを上書きします。
+
+```bash
+docker compose up -d    # 常駐実行（コンテナ内で 10 分間隔で再実行します）
+docker compose -f compose-all-update.yaml up -d    # UPDATE_ALL_BOOKS=true で全件更新する場合
+```
+
+## Development
+
+```bash
+pnpm install
+pnpm start    # 実行
+pnpm test     # テスト
+pnpm lint     # Prettier + ESLint + tsc
+```
 
 ## Booklog authentication
 

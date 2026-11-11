@@ -1,39 +1,18 @@
-# GitHub Copilot レビュー指示
+# GitHub Copilot review instructions
 
-このリポジトリのプルリクエストをレビューする際のガイドライン。
+Follow `AGENTS.md` at the repository root for the project overview, commands, structure and conventions. This file only lists what to check in reviews.
 
-## プロジェクト概要
+## Language
 
-Amazon.co.jp で購入した Kindle 作品を取得し、ブクログへ自動登録する Node.js / TypeScript アプリ。`puppeteer-core` で Amazon（OTP 2 段階認証対応）を操作し、ブクログは永続 Chromium プロファイルの認証状態を利用する。ASIN で登録済みを除外して新規分を登録し、Discord に通知する。Docker Compose で常駐実行する。
+- Deliverables (PR/Issue text, code comments, JSDoc, documentation) are written in Japanese, with a half-width space between Japanese and alphanumeric characters.
+- Runtime messages (logs, errors) are English.
 
-## 技術スタック
+## Review checklist
 
-- TypeScript / Node.js / pnpm
-- `puppeteer-core`（ブラウザ自動化。HTTP は page 経由で行い、専用 HTTP クライアントは使わない）、`csv-parse`（ブクログの CSV）、`iconv-lite`（CSV 文字コード変換）、`otplib`（OTP）、`tar-stream`（Kindle レスポンスの tar 展開）、`@book000/node-utils`（Logger / Discord）
-
-## 規約（レビューで確認する点）
-
-以下は Prettier / ESLint / tsc で自動強制されるため、指摘は原則ツールに委ね、レビューでは重複指摘しない:
-
-- Prettier: `singleQuote: true`, `semi: false`, `tabWidth: 2`, `printWidth: 80`
-- ESLint: `@book000/eslint-config`
-- TypeScript strict。`skipLibCheck` による型エラー回避は禁止（見つけたら指摘する）
-
-人によるレビューで確認すべき点:
-
-- コメント・JSDoc は日本語、エラーメッセージは英語、日本語と英数字の間に半角スペース
-- 命名: クラス PascalCase、関数・変数 camelCase、定数 UPPER_SNAKE_CASE
-- 公開関数・インターフェースに日本語 JSDoc があるか
-
-## 重点レビュー観点
-
-- **機密情報**: Amazon の認証情報、Discord Webhook URL、OTP シークレットがコード・ログ・テストに直書きされていないか。これらは `data/config.json`（`.gitignore` 済み）で管理する。ブクログの認証情報をコードから自動送信していないか、`/data/userdata` のブラウザプロファイルを機密データとして扱っているか、ログへの個人情報・認証情報の出力がないか。
-- **Puppeteer の堅牢性**: セレクタ・URL がハードコードされず定数化されているか。待機は `page.waitForSelector()` 等の明示的待機を使い、固定 `sleep` に依存していないか（Amazon / ブクログの UI は変わり得る）。
-- **エラーハンドリング**: 非同期処理に try/catch とログがあり、握りつぶしていないか。
-- **ASIN の除外ロジック**: ブクログ蔵書 CSV の itemId と Kindle の ASIN を照合する登録済み判定を壊し、重複登録・多重通知を招いていないか。
-
-## 誤検知として指摘しないもの
-
-- テストフレームワーク未導入のため、テストコードの不在は指摘不要。
-- `puppeteer-core` の利用（実行環境に Chrome / Chromium がある前提）。フルパッケージ `puppeteer` への変更提案は不要。
-- `entrypoint.sh` の無限ループ（10 分間隔での再実行）は常駐設計として意図的なもの。
+- Secrets: no Amazon credentials, Discord webhook URLs, proxy credentials or OTP secrets in code, logs or tests, and no personal information in logs. They live in `data/config.json` (git-ignored). The Booklog login form must never be auto-submitted, and the `/data/userdata` browser profile is treated as sensitive data.
+- Puppeteer robustness: selectors and URLs are constants, and waits are explicit (`page.waitForSelector()` and similar) rather than fixed sleeps.
+- Error handling: async code logs errors and does not swallow them.
+- Duplicate detection: the check that compares Booklog's exported CSV `itemId` with the Kindle ASIN must not break, otherwise books are registered or notified twice.
+- Comments explain why, not what. New or changed public functions and interfaces have JSDoc, and it matches the implementation.
+- Report any use of `skipLibCheck` to work around type errors (it is forbidden).
+- Do not flag: formatting issues that Prettier, ESLint and tsc already enforce; the infinite loop in `entrypoint.sh` (a 10-minute re-run loop by design); the use of `puppeteer-core` (Chromium is provided by the runtime).

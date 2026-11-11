@@ -15,52 +15,38 @@ export default class BooklogUpdateBook {
    * 更新する
    */
   public async update() {
-    // ページのURLを検証
     this.validatePageUrl()
 
-    // 読書状況を設定
     if (this.options.status) {
       await this.setBookStatus(this.options.status)
     }
-    // 読了日の設定
     if (this.options.readAt) {
       await this.setReadAt(this.options.readAt)
     }
-    // 評価の設定
     if (this.options.rate !== undefined) {
       await this.setRate(this.options.rate)
     }
-    // カテゴリの設定 (未実装)
     if (this.options.category) {
-      // await this.setCategory(this.options.category)
       this.setCategory()
     }
-    // レビュー・感想の設定
     if (this.options.review) {
       await this.setReview(this.options.review, this.options.isReviewSpoiler)
     }
-    // タグの設定
     if (this.options.tags) {
       await this.setTags(this.options.tags)
     }
-    // 登録日時の設定 (未実装)
     if (this.options.createdAt) {
-      // await this.setCreatedAt(this.options.createdAt)
       this.setCreatedAt()
     }
-    // 読書メモ(非公開)の設定
     if (this.options.memo) {
       await this.setMemo(this.options.memo)
     }
-    // 非公開登録のオプション設定
     if (this.options.isPrivate) {
       await this.setPrivate(this.options.isPrivate)
     }
 
-    // 1秒待つ
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
-    // 保存する
     await this.save()
   }
 
@@ -189,7 +175,7 @@ export default class BooklogUpdateBook {
    * カテゴリを更新する
    */
   private setCategory() {
-    // カテゴリはプルダウンにあるもの、または新規作成することができるが、それを制御するのがめんどくさいのでやめとく
+    // カテゴリはプルダウンの既存値の選択と新規作成の両方があり、操作が複雑なため未対応
     throw new Error('Not implemented')
   }
 
@@ -253,7 +239,7 @@ export default class BooklogUpdateBook {
    * 登録日時を更新する
    */
   private setCreatedAt() {
-    // yyyy, MM, dd, hh, mm, ssを分けて入力する必要があり、めんどくさいのでやめとく
+    // 年・月・日・時・分・秒を別々の入力欄に入れる必要があり、操作が複雑なため未対応
     throw new Error('Not implemented')
   }
 

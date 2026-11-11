@@ -87,7 +87,7 @@ async function addNewBooks(
       embeds: [
         {
           title: '新しい本を登録しました',
-          color: 0x00_ff_00, // green
+          color: 0x00_ff_00,
           fields: [
             {
               name: 'Title',
@@ -201,7 +201,7 @@ async function updateUnsetStatusBooks(
               value: `https://booklog.jp/item/1/${book.itemId}`,
             },
           ],
-          color: 0x00_ff_00, // green
+          color: 0x00_ff_00,
           footer: {
             text: 'Powered by kindle-booklog',
           },
@@ -268,7 +268,7 @@ async function updateAllBooks(
     embeds: [
       {
         title: '全ての本情報を更新しました',
-        color: 0x00_ff_00, // green
+        color: 0x00_ff_00,
         footer: {
           text: 'Powered by kindle-booklog',
         },
@@ -328,7 +328,7 @@ async function notifyLoginRequiredOnce(
       {
         title: 'ブクログの手動ログインが必要です',
         description: 'VNC で Chromium を開き、ブクログへログインしてください。',
-        color: 0xff_00_00, // red
+        color: 0xff_00_00,
         footer: {
           text: 'Powered by kindle-booklog',
         },
@@ -593,7 +593,7 @@ async function main() {
           {
             title: 'Chromiumの起動に失敗しました',
             description,
-            color: 0xff_00_00, // red
+            color: 0xff_00_00,
             footer: {
               text: 'Powered by kindle-booklog',
             },
@@ -656,7 +656,7 @@ async function main() {
             err instanceof Error
               ? err.message + '\n\n' + (err.stack ?? '')
               : String(err),
-          color: 0xff_00_00, // red
+          color: 0xff_00_00,
           footer: {
             text: 'Powered by kindle-booklog',
           },
