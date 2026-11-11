@@ -132,10 +132,8 @@ export default class Amazon {
       !this.options.isIgnoreCookie &&
       page.url().startsWith('https://read.amazon.co.jp/kindle-library')
     ) {
-      // already login?
       return
     }
-    // need login
     await this.waitForSelectorWithDiagnostics(
       page,
       LOGIN_SELECTORS.topSignInButton,
