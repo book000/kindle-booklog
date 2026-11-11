@@ -368,7 +368,7 @@ export default class Amazon {
           stream.resume()
         })
         extract.on('finish', () => {
-          reject(new Error('data.json not found'))
+          reject(new Error('metadata.json not found'))
         })
         extract.end(tarball)
       }
