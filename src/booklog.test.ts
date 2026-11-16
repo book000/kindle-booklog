@@ -197,20 +197,6 @@ test('手動ログイン待ちはページ内 JavaScript を評価せず URL 変
   throw error
 })
 
-test('本棚取得時に認証切れなら selector timeout より先に失敗する', async () => {
-  const page = new FakePage(false)
-  const booklog = createBooklog(page)
-
-  await assert.rejects(
-    booklog.getBookshelfBooks(),
-    /Booklog authentication required/
-  )
-
-  assert.equal(page.waitForSelectorCalled, false)
-}).catch((error: unknown) => {
-  throw error
-})
-
 class FakeExportPage {
   public closed = false
 
@@ -320,6 +306,19 @@ async function withTemporaryState(run: (statePath: string) => Promise<void>) {
   }
 }
 
+test('本棚取得時にログイン画面へ遷移したら手動ログインを待つ', async () => {
+  await withTemporaryState(async () => {
+    const page = new FakePage(false)
+    await assert.rejects(
+      createBooklog(page).getBookshelfBooks(),
+      BooklogLoginRequiredError
+    )
+    assert.equal(page.waitForSelectorCalled, false)
+  })
+}).catch((error: unknown) => {
+  throw error
+})
+
 test('バックオフ期間内は手動ログインを待たず即座に BooklogLoginRequiredError を投げる', async () => {
   await withTemporaryState(async (statePath) => {
     fs.writeFileSync(
@@ -379,7 +378,7 @@ test('バックオフ期間を過ぎていれば再び手動ログインを待�
         ]),
     } as unknown as Browser
     await new Booklog({ browser }).login()
-    assert.equal(fs.existsSync(statePath), false)
+    assert.equal(fs.existsSync(statePath), true)
     const saved = JSON.parse(
       fs.readFileSync(process.env.COOKIE_BOOKLOG ?? '', 'utf8')
     ) as { session: boolean; expires: number }[]
@@ -410,20 +409,46 @@ test('本棚取得（a#execExport の確認）に成功したら状態ファイ�
   throw error
 })
 
-test('a#execExport が見つからなければ BooklogLoginRequiredError を投げ状態を記録する', async () => {
+test('a#execExport が見つからなければ手動ログインを待ちタイムアウト時に状態を記録する', async () => {
   await withTemporaryState(async (statePath) => {
     const page = new FakeExportPage()
     page.waitForSelector = () => Promise.reject(new Error('timeout'))
+    const loginPage = new FakePage(false)
+    const pages = [page, loginPage]
     const browser = {
-      newPage: () => Promise.resolve(page),
+      newPage: () => Promise.resolve(pages.shift()),
     } as unknown as Browser
     await assert.rejects(
       new Booklog({ browser }).getBookshelfBooks(),
-      (error: unknown) =>
-        error instanceof BooklogLoginRequiredError &&
-        (error.cause as Error).message === 'timeout'
+      BooklogLoginRequiredError
     )
+    assert.equal(page.closed, true)
+    assert.equal(loginPage.url(), BOOKLOG_LOGIN_URL)
     assert.equal(fs.existsSync(statePath), true)
+  })
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('本棚取得で認証必須と判定しても手動ログイン後に取得を再試行する', async () => {
+  await withTemporaryState(async (statePath) => {
+    const failedPage = new FakeExportPage()
+    failedPage.waitForSelector = () => Promise.reject(new Error('timeout'))
+    const loginPage = new FakePage(true, true)
+    const exportPage = new FakeExportPage()
+    const pages = [failedPage, loginPage, exportPage]
+    const browser = {
+      newPage: () => Promise.resolve(pages.shift()),
+      cookies: () => Promise.resolve([]),
+    } as unknown as Browser
+    const books = await withFakeFetch(
+      () => Promise.resolve(new Response('')),
+      () => new Booklog({ browser }).getBookshelfBooks()
+    )
+    assert.deepEqual(books, [])
+    assert.ok(loginPage.gotoCalls.includes(BOOKLOG_LOGIN_URL))
+    assert.equal(exportPage.closed, true)
+    assert.equal(fs.existsSync(statePath), false)
   })
 }).catch((error: unknown) => {
   throw error
@@ -437,8 +462,9 @@ test('a#execExport の失敗では通知済みフラグを維持する', async (
     )
     const page = new FakeExportPage()
     page.waitForSelector = () => Promise.reject(new Error('timeout'))
+    const pages = [page, page, new FakePage(false)]
     const browser = {
-      newPage: () => Promise.resolve(page),
+      newPage: () => Promise.resolve(pages.shift()),
       cookies: () => Promise.resolve([]),
     } as unknown as Browser
     const booklog = new Booklog({ browser })
