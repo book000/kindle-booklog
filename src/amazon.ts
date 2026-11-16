@@ -27,6 +27,50 @@ const LOGIN_SELECTORS = {
   mfaSignInButton: 'input#auth-signin-button',
 } as const
 
+/**
+ * Kindle の render tarball から `metadata.json` を取り出してパースする。
+ * 不正な archive・不正な JSON・`metadata.json` の欠落はすべて reject で通知し、
+ * 途中失敗時は extractor を破棄する。
+ * @param tarball - Kindle の render レスポンスの tarball
+ */
+export function extractKindleMetadata(
+  tarball: Buffer
+): Promise<KindleRenderMetadata> {
+  return new Promise((resolve, reject) => {
+    const extract = tar.extract()
+    const fail = (error: unknown) => {
+      extract.destroy()
+      reject(error instanceof Error ? error : new Error(String(error)))
+    }
+    extract.on('error', fail)
+    extract.on('entry', (header, stream, next) => {
+      stream.on('error', fail)
+      if (header.name !== 'metadata.json') {
+        stream.on('end', next)
+        stream.resume()
+        return
+      }
+      const chunks: Buffer[] = []
+      stream.on('data', (chunk: unknown) => {
+        chunks.push(chunk as Buffer)
+      })
+      stream.on('end', () => {
+        try {
+          resolve(JSON.parse(Buffer.concat(chunks).toString()))
+        } catch (error) {
+          fail(error)
+          return
+        }
+        next()
+      })
+    })
+    extract.on('finish', () => {
+      reject(new Error('metadata.json not found'))
+    })
+    extract.end(tarball)
+  })
+}
+
 interface AmazonOptions {
   browser: Browser
   username: string
@@ -345,32 +389,7 @@ export default class Amazon {
     }
 
     const tarball = await renderResponse.buffer()
-    const metadata: KindleRenderMetadata = await new Promise(
-      (resolve, reject) => {
-        const extract = tar.extract()
-        extract.on('entry', (header, stream, next) => {
-          if (header.name === 'metadata.json') {
-            let data = ''
-            stream.on('data', (chunk: unknown) => {
-              data += (chunk as Buffer).toString()
-            })
-            stream.on('end', () => {
-              resolve(JSON.parse(data))
-            })
-          } else {
-            stream.resume()
-          }
-          stream.on('end', () => {
-            next()
-          })
-          stream.resume()
-        })
-        extract.on('finish', () => {
-          reject(new Error('metadata.json not found'))
-        })
-        extract.end(tarball)
-      }
-    )
+    const metadata = await extractKindleMetadata(tarball)
 
     await page.close()
 

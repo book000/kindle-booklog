@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { Browser } from 'puppeteer-core'
-import Amazon from './amazon'
+import tar from 'tar-stream'
+import Amazon, { extractKindleMetadata } from './amazon'
 
 type LoginStage = 'landing' | 'email' | 'password' | 'mfa' | 'library'
 
@@ -264,6 +265,61 @@ test('getBookPercentageRead は goto 失敗時に waitForResponse を未処理 r
   } finally {
     process.off('unhandledRejection', onUnhandled)
   }
+}).catch((error: unknown) => {
+  throw error
+})
+
+function packTar(files: Record<string, string>): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const pack = tar.pack()
+    const chunks: Buffer[] = []
+    pack.on('data', (chunk: unknown) => {
+      chunks.push(chunk as Buffer)
+    })
+    pack.on('error', reject)
+    pack.on('end', () => {
+      resolve(Buffer.concat(chunks))
+    })
+    for (const [name, content] of Object.entries(files)) {
+      pack.entry({ name }, content)
+    }
+    pack.finalize()
+  })
+}
+
+test('extractKindleMetadata は metadata.json をパースして返す', async () => {
+  const tarball = await packTar({
+    'other.json': '{}',
+    'metadata.json': JSON.stringify({ lastPositionId: 100 }),
+  })
+  assert.deepEqual(await extractKindleMetadata(tarball), {
+    lastPositionId: 100,
+  })
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('extractKindleMetadata は不正な JSON を reject する', async () => {
+  const tarball = await packTar({ 'metadata.json': '{not json' })
+  await assert.rejects(extractKindleMetadata(tarball), SyntaxError)
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('extractKindleMetadata は metadata.json の欠落を reject する', async () => {
+  const tarball = await packTar({ 'other.json': '{}' })
+  await assert.rejects(extractKindleMetadata(tarball), {
+    message: 'metadata.json not found',
+  })
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('extractKindleMetadata は壊れた archive を reject する', async () => {
+  await assert.rejects(extractKindleMetadata(Buffer.alloc(512, 'x')), {
+    message:
+      'Invalid tar header. Maybe the tar is corrupted or it needs to be gunzipped?',
+  })
 }).catch((error: unknown) => {
   throw error
 })
