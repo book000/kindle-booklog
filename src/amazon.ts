@@ -322,68 +322,71 @@ export default class Amazon {
       await authProxy(page, this.proxyOptions)
     }
 
-    const url = book.webReaderUrl
-    const promise = page.waitForResponse((response) => {
-      return response
-        .url()
-        .startsWith('https://read.amazon.co.jp/renderer/render')
-    })
-    // goto 失敗時は promise を await しないため、未処理の reject にならないよう握りつぶす（この場合は goto のエラーが伝播する）。goto 成功時は後続の await で再 throw される
-    promise.catch(() => undefined)
-    await page.goto(url, {
-      waitUntil: 'networkidle2',
-    })
-    const renderResponse = await promise
+    try {
+      const url = book.webReaderUrl
+      const promise = page.waitForResponse((response) => {
+        return response
+          .url()
+          .startsWith('https://read.amazon.co.jp/renderer/render')
+      })
+      // goto 失敗時は promise を await しないため、未処理の reject にならないよう握りつぶす（この場合は goto のエラーが伝播する）。goto 成功時は後続の await で再 throw される
+      promise.catch(() => undefined)
+      await page.goto(url, {
+        waitUntil: 'networkidle2',
+      })
+      const renderResponse = await promise
 
-    const renderUrl = renderResponse.url()
-    const renderUrlObject = new URL(renderUrl)
-    const startingPosition = Number(
-      renderUrlObject.searchParams.get('startingPosition')
-    )
-    if (Number.isNaN(startingPosition)) {
-      throw new TypeError('startingPosition is NaN')
-    }
-
-    const tarball = await renderResponse.buffer()
-    const metadata: KindleRenderMetadata = await new Promise(
-      (resolve, reject) => {
-        const extract = tar.extract()
-        extract.on('entry', (header, stream, next) => {
-          if (header.name === 'metadata.json') {
-            let data = ''
-            stream.on('data', (chunk: unknown) => {
-              data += (chunk as Buffer).toString()
-            })
-            stream.on('end', () => {
-              resolve(JSON.parse(data))
-            })
-          } else {
-            stream.resume()
-          }
-          stream.on('end', () => {
-            next()
-          })
-          stream.resume()
-        })
-        extract.on('finish', () => {
-          reject(new Error('metadata.json not found'))
-        })
-        extract.end(tarball)
+      const renderUrl = renderResponse.url()
+      const renderUrlObject = new URL(renderUrl)
+      const startingPosition = Number(
+        renderUrlObject.searchParams.get('startingPosition')
+      )
+      if (Number.isNaN(startingPosition)) {
+        throw new TypeError('startingPosition is NaN')
       }
-    )
 
-    await page.close()
+      const tarball = await renderResponse.buffer()
+      const metadata: KindleRenderMetadata = await new Promise(
+        (resolve, reject) => {
+          const extract = tar.extract()
+          extract.on('entry', (header, stream, next) => {
+            if (header.name === 'metadata.json') {
+              let data = ''
+              stream.on('data', (chunk: unknown) => {
+                data += (chunk as Buffer).toString()
+              })
+              stream.on('end', () => {
+                resolve(JSON.parse(data))
+              })
+            } else {
+              stream.resume()
+            }
+            stream.on('end', () => {
+              next()
+            })
+            stream.resume()
+          })
+          extract.on('finish', () => {
+            reject(new Error('metadata.json not found'))
+          })
+          extract.end(tarball)
+        }
+      )
 
-    // ((firstPositionId ?? 0) + startingPosition) / lastPositionId で割合が出せる。ただし、Number(roughDecimal.toFixed(3)) * 100 した方がいいらしい
-    // ref: https://github.com/Xetera/kindle-api/blob/dc34acf607783aa3a64a9c52ff72bfdbaefcd12b/src/book.ts#L94C28-L94C66
-    const percentageRead =
-      Number(
-        (
-          ((metadata.firstPositionId ?? 0) + startingPosition) /
-          metadata.lastPositionId
-        ).toFixed(3)
-      ) * 100
+      // ((firstPositionId ?? 0) + startingPosition) / lastPositionId で割合が出せる。ただし、Number(roughDecimal.toFixed(3)) * 100 した方がいいらしい
+      // ref: https://github.com/Xetera/kindle-api/blob/dc34acf607783aa3a64a9c52ff72bfdbaefcd12b/src/book.ts#L94C28-L94C66
+      const percentageRead =
+        Number(
+          (
+            ((metadata.firstPositionId ?? 0) + startingPosition) /
+            metadata.lastPositionId
+          ).toFixed(3)
+        ) * 100
 
-    return percentageRead
+      return percentageRead
+    } finally {
+      // 失敗しても次の本へ進む呼出し側で page が蓄積しないよう、必ず閉じる
+      await page.close()
+    }
   }
 }
