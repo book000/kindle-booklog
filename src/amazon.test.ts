@@ -231,6 +231,7 @@ test('Amazon の MFA 送信まで全 navigation を同期する', async () => {
 test('getBookPercentageRead は goto 失敗時に waitForResponse を未処理 reject にしない', async () => {
   const page = {
     goto: () => Promise.reject(new Error('goto failed')),
+    close: () => Promise.resolve(),
     // goto 失敗後に reject する（catch がなければ未処理の reject になる）
     waitForResponse: () =>
       new Promise((_resolve, reject) => {
@@ -384,6 +385,42 @@ test('読書進捗は位置と計算結果が有効な場合だけ返す', async
   ] as const) {
     await assert.rejects(percentage(metadata, position), TypeError)
   }
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('getBookPercentageRead は失敗を繰り返しても開いている page を残さない', async () => {
+  let openPages = 0
+  const browser = {
+    newPage: () => {
+      openPages++
+      return Promise.resolve({
+        goto: () => Promise.reject(new Error('goto failed')),
+        waitForResponse: () => new Promise(() => undefined),
+        close: () => {
+          openPages--
+          return Promise.resolve()
+        },
+      })
+    },
+  } as unknown as Browser
+  const amazon = new Amazon({
+    browser,
+    username: 'test@example.com',
+    password: 'password',
+    cookiePath: '/tmp/kindle-booklog-amazon-test-cookie.json',
+    isIgnoreCookie: true,
+  })
+
+  for (let i = 0; i < 3; i++) {
+    await assert.rejects(
+      amazon.getBookPercentageRead({
+        webReaderUrl: 'https://example.com',
+      } as never),
+      /goto failed/
+    )
+  }
+  assert.equal(openPages, 0)
 }).catch((error: unknown) => {
   throw error
 })

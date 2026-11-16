@@ -363,69 +363,70 @@ export default class Amazon {
       await authProxy(page, this.proxyOptions)
     }
 
-    const url = book.webReaderUrl
-    const promise = page.waitForResponse((response) => {
-      return response
-        .url()
-        .startsWith('https://read.amazon.co.jp/renderer/render')
-    })
-    // goto 失敗時は promise を await しないため、未処理の reject にならないよう握りつぶす（この場合は goto のエラーが伝播する）。goto 成功時は後続の await で再 throw される
-    promise.catch(() => undefined)
-    await page.goto(url, {
-      waitUntil: 'networkidle2',
-    })
-    const renderResponse = await promise
+    try {
+      const url = book.webReaderUrl
+      const promise = page.waitForResponse((response) => {
+        return response
+          .url()
+          .startsWith('https://read.amazon.co.jp/renderer/render')
+      })
+      // goto 失敗時は promise を await しないため、未処理の reject にならないよう握りつぶす（この場合は goto のエラーが伝播する）。goto 成功時は後続の await で再 throw される
+      promise.catch(() => undefined)
+      await page.goto(url, {
+        waitUntil: 'networkidle2',
+      })
+      const renderResponse = await promise
 
-    const renderUrl = renderResponse.url()
-    const renderUrlObject = new URL(renderUrl)
-    const startingPositionValue =
-      renderUrlObject.searchParams.get('startingPosition')
-    const startingPosition = Number(startingPositionValue)
-    if (
-      startingPositionValue === null ||
-      startingPositionValue.trim() === '' ||
-      !Number.isFinite(startingPosition) ||
-      startingPosition < 0
-    ) {
+      const renderUrl = renderResponse.url()
+      const renderUrlObject = new URL(renderUrl)
+      const startingPositionValue =
+        renderUrlObject.searchParams.get('startingPosition')
+      const startingPosition = Number(startingPositionValue)
+      if (
+        startingPositionValue === null ||
+        startingPositionValue.trim() === '' ||
+        !Number.isFinite(startingPosition) ||
+        startingPosition < 0
+      ) {
+        throw new TypeError('Invalid startingPosition')
+      }
+
+      const tarball = await renderResponse.buffer()
+      const metadata = await extractKindleMetadata(tarball)
+
+      if (
+        typeof metadata !== 'object' ||
+        metadata === null ||
+        !('lastPositionId' in metadata)
+      ) {
+        throw new TypeError('Invalid reading metadata')
+      }
+      const { lastPositionId } = metadata
+      const firstPositionId =
+        'firstPositionId' in metadata ? metadata.firstPositionId : 0
+      if (
+        typeof firstPositionId !== 'number' ||
+        typeof lastPositionId !== 'number' ||
+        firstPositionId < 0 ||
+        lastPositionId <= 0 ||
+        !Number.isFinite(firstPositionId) ||
+        !Number.isFinite(lastPositionId)
+      ) {
+        throw new TypeError('Invalid reading metadata positions')
+      }
+
+      const progress = (firstPositionId + startingPosition) / lastPositionId
+      if (!Number.isFinite(progress) || progress < 0 || progress > 1) {
+        throw new TypeError('Invalid reading progress')
+      }
+
+      // ((firstPositionId ?? 0) + startingPosition) / lastPositionId で割合が出せる。ただし、Number(roughDecimal.toFixed(3)) * 100 した方がいいらしい
+      // ref: https://github.com/Xetera/kindle-api/blob/dc34acf607783aa3a64a9c52ff72bfdbaefcd12b/src/book.ts#L94C28-L94C66
+      const percentageRead = Number(progress.toFixed(3)) * 100
+
+      return percentageRead
+    } finally {
       await page.close()
-      throw new TypeError('Invalid startingPosition')
     }
-
-    const tarball = await renderResponse.buffer()
-    const metadata = await extractKindleMetadata(tarball)
-
-    await page.close()
-
-    if (
-      typeof metadata !== 'object' ||
-      metadata === null ||
-      !('lastPositionId' in metadata)
-    ) {
-      throw new TypeError('Invalid reading metadata')
-    }
-    const { lastPositionId } = metadata
-    const firstPositionId =
-      'firstPositionId' in metadata ? metadata.firstPositionId : 0
-    if (
-      typeof firstPositionId !== 'number' ||
-      typeof lastPositionId !== 'number' ||
-      firstPositionId < 0 ||
-      lastPositionId <= 0 ||
-      !Number.isFinite(firstPositionId) ||
-      !Number.isFinite(lastPositionId)
-    ) {
-      throw new TypeError('Invalid reading metadata positions')
-    }
-
-    const progress = (firstPositionId + startingPosition) / lastPositionId
-    if (!Number.isFinite(progress) || progress < 0 || progress > 1) {
-      throw new TypeError('Invalid reading progress')
-    }
-
-    // ((firstPositionId ?? 0) + startingPosition) / lastPositionId で割合が出せる。ただし、Number(roughDecimal.toFixed(3)) * 100 した方がいいらしい
-    // ref: https://github.com/Xetera/kindle-api/blob/dc34acf607783aa3a64a9c52ff72bfdbaefcd12b/src/book.ts#L94C28-L94C66
-    const percentageRead = Number(progress.toFixed(3)) * 100
-
-    return percentageRead
   }
 }
