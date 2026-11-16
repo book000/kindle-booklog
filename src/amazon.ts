@@ -13,7 +13,6 @@ import {
   KindleSearchResponse,
 } from './models/kindle-search-response'
 import tar from 'tar-stream'
-import { KindleRenderMetadata } from './models/kindle-render-metadata'
 
 // Amazon ログインフローで待機・操作するセレクタ。ログ文言とコードの対応を明確にするため集約する
 const LOGIN_SELECTORS = {
@@ -337,52 +336,76 @@ export default class Amazon {
 
     const renderUrl = renderResponse.url()
     const renderUrlObject = new URL(renderUrl)
-    const startingPosition = Number(
+    const startingPositionValue =
       renderUrlObject.searchParams.get('startingPosition')
-    )
-    if (Number.isNaN(startingPosition)) {
-      throw new TypeError('startingPosition is NaN')
+    const startingPosition = Number(startingPositionValue)
+    if (
+      startingPositionValue === null ||
+      startingPositionValue.trim() === '' ||
+      !Number.isFinite(startingPosition) ||
+      startingPosition < 0
+    ) {
+      await page.close()
+      throw new TypeError('Invalid startingPosition')
     }
 
     const tarball = await renderResponse.buffer()
-    const metadata: KindleRenderMetadata = await new Promise(
-      (resolve, reject) => {
-        const extract = tar.extract()
-        extract.on('entry', (header, stream, next) => {
-          if (header.name === 'metadata.json') {
-            let data = ''
-            stream.on('data', (chunk: unknown) => {
-              data += (chunk as Buffer).toString()
-            })
-            stream.on('end', () => {
-              resolve(JSON.parse(data))
-            })
-          } else {
-            stream.resume()
-          }
-          stream.on('end', () => {
-            next()
+    const metadata: unknown = await new Promise((resolve, reject) => {
+      const extract = tar.extract()
+      extract.on('entry', (header, stream, next) => {
+        if (header.name === 'metadata.json') {
+          let data = ''
+          stream.on('data', (chunk: unknown) => {
+            data += (chunk as Buffer).toString()
           })
+          stream.on('end', () => {
+            resolve(JSON.parse(data))
+          })
+        } else {
           stream.resume()
+        }
+        stream.on('end', () => {
+          next()
         })
-        extract.on('finish', () => {
-          reject(new Error('metadata.json not found'))
-        })
-        extract.end(tarball)
-      }
-    )
+        stream.resume()
+      })
+      extract.on('finish', () => {
+        reject(new Error('metadata.json not found'))
+      })
+      extract.end(tarball)
+    })
 
     await page.close()
 
+    if (
+      typeof metadata !== 'object' ||
+      metadata === null ||
+      !('lastPositionId' in metadata)
+    ) {
+      throw new TypeError('Invalid reading metadata')
+    }
+    const { lastPositionId } = metadata
+    const firstPositionId =
+      'firstPositionId' in metadata ? metadata.firstPositionId : 0
+    if (
+      typeof firstPositionId !== 'number' ||
+      typeof lastPositionId !== 'number' ||
+      firstPositionId < 0 ||
+      lastPositionId <= 0 ||
+      !Number.isFinite(firstPositionId) ||
+      !Number.isFinite(lastPositionId)
+    ) {
+      throw new TypeError('Invalid reading metadata positions')
+    }
+
+    const progress = (firstPositionId + startingPosition) / lastPositionId
+    if (!Number.isFinite(progress) || progress < 0 || progress > 1) {
+      throw new TypeError('Invalid reading progress')
+    }
+
     // ((firstPositionId ?? 0) + startingPosition) / lastPositionId で割合が出せる。ただし、Number(roughDecimal.toFixed(3)) * 100 した方がいいらしい
     // ref: https://github.com/Xetera/kindle-api/blob/dc34acf607783aa3a64a9c52ff72bfdbaefcd12b/src/book.ts#L94C28-L94C66
-    const percentageRead =
-      Number(
-        (
-          ((metadata.firstPositionId ?? 0) + startingPosition) /
-          metadata.lastPositionId
-        ).toFixed(3)
-      ) * 100
+    const percentageRead = Number(progress.toFixed(3)) * 100
 
     return percentageRead
   }

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { Browser } from 'puppeteer-core'
+import tar from 'tar-stream'
 import Amazon from './amazon'
 
 type LoginStage = 'landing' | 'email' | 'password' | 'mfa' | 'library'
@@ -263,6 +264,70 @@ test('getBookPercentageRead は goto 失敗時に waitForResponse を未処理 r
     assert.deepEqual(unhandled, [])
   } finally {
     process.off('unhandledRejection', onUnhandled)
+  }
+}).catch((error: unknown) => {
+  throw error
+})
+
+test('読書進捗は位置と計算結果が有効な場合だけ返す', async () => {
+  async function percentage(
+    metadata: unknown,
+    startingPosition: string | null
+  ): Promise<number> {
+    const pack = tar.pack()
+    pack.entry({ name: 'metadata.json' }, JSON.stringify(metadata))
+    pack.finalize()
+    const chunks: Buffer[] = []
+    for await (const chunk of pack) {
+      chunks.push(chunk as Buffer)
+    }
+    const url = new URL('https://read.amazon.co.jp/renderer/render')
+    if (startingPosition !== null)
+      url.searchParams.set('startingPosition', startingPosition)
+    const response = {
+      url: () => url.href,
+      buffer: () => Promise.resolve(Buffer.concat(chunks)),
+    }
+    const page = {
+      waitForResponse: () => Promise.resolve(response),
+      goto: () => Promise.resolve(),
+      close: () => Promise.resolve(),
+    }
+    const browser = {
+      newPage: () => Promise.resolve(page),
+    } as unknown as Browser
+    const amazon = new Amazon({
+      browser,
+      username: 'test@example.com',
+      password: 'password',
+      isIgnoreCookie: true,
+    })
+    return amazon.getBookPercentageRead({
+      webReaderUrl: 'https://example.com',
+    } as never)
+  }
+
+  assert.equal(await percentage({ lastPositionId: 100 }, '99'), 99)
+  assert.equal(
+    await percentage({ firstPositionId: 10, lastPositionId: 100 }, '40'),
+    50
+  )
+  for (const [metadata, position] of [
+    [{}, '0'],
+    [{ lastPositionId: 0 }, '0'],
+    [{ lastPositionId: '100' }, '0'],
+    [{ lastPositionId: -1 }, '0'],
+    [{ firstPositionId: '1', lastPositionId: 100 }, '0'],
+    [{ firstPositionId: -1, lastPositionId: 100 }, '0'],
+    [{ lastPositionId: 100 }, null],
+    [{ lastPositionId: 100 }, ''],
+    [{ lastPositionId: 100 }, 'NaN'],
+    [{ lastPositionId: 100 }, 'Infinity'],
+    [{ lastPositionId: 100 }, '-1'],
+    [{ lastPositionId: 100 }, '101'],
+    [{ firstPositionId: 1e308, lastPositionId: 1e308 }, '1e308'],
+  ] as const) {
+    await assert.rejects(percentage(metadata, position), TypeError)
   }
 }).catch((error: unknown) => {
   throw error
