@@ -224,8 +224,10 @@ export default class Booklog {
 
   /**
    * Booklogにログインする
+   *
+   * @param forceManual 認証必須と判定済みの場合に手動ログインを要求する
    */
-  public async login(): Promise<void> {
+  public async login(forceManual = false): Promise<void> {
     console.log('Booklog.login()')
     const page = await this.options.browser.newPage()
     if (this.proxyOptions) {
@@ -239,7 +241,7 @@ export default class Booklog {
       await this.navigate(page, BOOKLOG_EXPORT_URL)
       isLoginPage = page.url().startsWith(BOOKLOG_LOGIN_URL)
     }
-    if (!isLoginPage) {
+    if (!isLoginPage && !forceManual) {
       // 状態ファイルは本棚取得（a#execExport の確認）の成功時に削除する
       await this.saveCookies()
       await page.close()
@@ -253,6 +255,10 @@ export default class Booklog {
     if (elapsedMs >= 0 && elapsedMs < MANUAL_LOGIN_BACKOFF_MS) {
       await page.close()
       throw new BooklogLoginRequiredError('Booklog manual login required')
+    }
+
+    if (forceManual && !isLoginPage) {
+      await this.navigate(page, BOOKLOG_LOGIN_URL)
     }
 
     const configuredTimeout = Number.parseInt(
@@ -269,6 +275,7 @@ export default class Booklog {
       const remainingMs = manualLoginDeadline - Date.now()
       if (remainingMs <= 0) {
         markLoginRequired()
+        await page.close()
         throw new BooklogLoginRequiredError('Booklog manual login required')
       }
       await delay(Math.min(1000, remainingMs))
@@ -277,10 +284,10 @@ export default class Booklog {
     await this.navigate(page, BOOKLOG_EXPORT_URL)
     if (page.url().startsWith(BOOKLOG_LOGIN_URL)) {
       markLoginRequired()
+      await page.close()
       throw new BooklogLoginRequiredError('Booklog manual login required')
     }
 
-    clearLoginState()
     await this.saveCookies()
     await page.close()
   }
@@ -355,6 +362,21 @@ export default class Booklog {
    * @returns 登録されている本の一覧
    */
   public async getBookshelfBooks(): Promise<BooklogBook[]> {
+    try {
+      return await this.fetchBookshelfBooks()
+    } catch (error) {
+      if (!(error instanceof BooklogLoginRequiredError)) throw error
+      await this.login(true)
+      try {
+        return await this.fetchBookshelfBooks()
+      } catch (retryError) {
+        if (retryError instanceof BooklogLoginRequiredError) markLoginRequired()
+        throw retryError
+      }
+    }
+  }
+
+  private async fetchBookshelfBooks(): Promise<BooklogBook[]> {
     console.log('Booklog.getBookshelfBooks()')
     const page = await this.options.browser.newPage()
     if (this.proxyOptions) {
@@ -363,7 +385,7 @@ export default class Booklog {
 
     await this.navigate(page, BOOKLOG_EXPORT_URL)
     if (page.url().startsWith(BOOKLOG_LOGIN_URL)) {
-      markLoginRequired()
+      await page.close()
       throw new BooklogLoginRequiredError('Booklog authentication required')
     }
     try {
@@ -372,8 +394,7 @@ export default class Booklog {
         timeout: 15_000,
       })
     } catch (error) {
-      // エクスポートボタンが無い場合は認証切れとみなし、同じバックオフ経路に乗せる
-      markLoginRequired()
+      await page.close()
       throw new BooklogLoginRequiredError('Booklog authentication required', {
         cause: error,
       })
