@@ -231,8 +231,8 @@ importers:
         specifier: 2.1.0
         version: 2.1.0
       tar-stream:
-        specifier: 3.2.2
-        version: 3.2.2(bare-buffer@3.7.2)
+        specifier: 3.3.0
+        version: 3.3.0(bare-buffer@3.7.2)
       tsx:
         specifier: 4.23.15
         version: 4.23.15
@@ -2100,8 +2100,8 @@ packages:
     resolution: {integrity: sha512-NHFiWnAbMJxNNpBwiO7jJVGDuqMxT9/oV8v57RR+fgBQShkJil5inGD8/xWy0hjLyHQyX1tu27QANhlz3KBqCg==}
     engines: {node: '>=6'}
 
-  tar-stream@3.2.2:
-    resolution: {integrity: sha512-+8NeqHRjQWH9nYlwo2gamAMImZCVzI4UoEgDpWorBt9OEfppiZn+uSkskzQKPWIZyji/C8fpWO7u69G0DX0tbg==}
+  tar-stream@3.3.0:
+    resolution: {integrity: sha512-rQZZfW2Q4YDCFJyP8KFDG+gfMzcOHaMYq0gb9jzH2gsK0P5qXVpu+UoKE1qaZcs3/R6QVkJr2228nlZoM1V5PA==}
 
   teex@1.0.1:
     resolution: {integrity: sha512-eYE6iEI62Ni1H8oIa7KlDU6uQBtqr4Eajni3wX7rpfXD8ysFx8z0+dri+KWEPWpBsxXfxu58x/0jvTVT1ekOSg==}
@@ -4327,7 +4327,7 @@ snapshots:
 
   tapable@2.3.4: {}
 
-  tar-stream@3.2.2(bare-buffer@3.7.2):
+  tar-stream@3.3.0(bare-buffer@3.7.2):
     dependencies:
       b4a: 1.9.0
       bare-fs: 4.8.4(bare-buffer@3.7.2)
