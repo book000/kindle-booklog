@@ -46,7 +46,7 @@
     "prettier": "3.10.1",
     "puppeteer-core": "npm:rebrowser-puppeteer-core@25.16.0",
     "run-z": "2.1.0",
-    "tar-stream": "3.2.2",
+    "tar-stream": "3.3.0",
     "tsx": "4.23.15",
     "typescript": "6.0.3"
   },
