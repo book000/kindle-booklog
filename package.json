@@ -31,7 +31,7 @@
     "fix:eslint": "eslint . -c eslint.config.mjs --fix"
   },
   "devDependencies": {
-    "@book000/eslint-config": "1.16.124",
+    "@book000/eslint-config": "1.17.14",
     "@book000/node-utils": "1.26.48",
     "@types/node": "26.6.10",
     "@types/tar-stream": "3.1.5",
